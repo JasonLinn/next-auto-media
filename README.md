@@ -121,26 +121,17 @@ src/
 
 本項目使用 Tailwind CSS v4，需要特別注意以下事項：
 
-1. 確保 `postcss.config.mjs` 文件中使用的是 `@tailwindcss/postcss` 而不是 `tailwindcss`：
+1. 確保 `postcss.config.mjs` 文件配置正確：
    ```js
    export default {
      plugins: {
-       '@tailwindcss/postcss': {},
+       tailwindcss: {},
        autoprefixer: {},
      },
    };
    ```
 
-2. 確保 `package.json` 中包含 `@tailwindcss/postcss` 依賴：
-   ```json
-   "devDependencies": {
-     "@tailwindcss/postcss": "^3.0.0",
-     "tailwindcss": "^4.0.14",
-     // 其他依賴...
-   }
-   ```
-
-3. 對於第三方 CSS 文件（如 `react-calendar/dist/Calendar.css`），建議創建自定義 CSS 文件以避免 Tailwind CSS 處理問題。
+2. 對於第三方 CSS 文件（如 `react-calendar/dist/Calendar.css`），建議創建自定義 CSS 文件以避免 Tailwind CSS 處理問題。
 
 ## 貢獻
 
