@@ -15,9 +15,9 @@ AutoMedia 是一個基於 Next.js 和 Vercel 的社交媒體管理平台，專�
 
 ### 前端
 
-- **Next.js 14+**（App Router）
-- **React 18+**
-- **Tailwind CSS**（UI 樣式）
+- **Next.js 15+**（App Router）
+- **React 19+**
+- **Tailwind CSS 4**（UI 樣式）
 - **NextAuth.js**（認證系統）
 
 ### 後端
@@ -64,7 +64,7 @@ src/
 
 1. 克隆倉庫
    ```
-   git clone https://github.com/yourusername/next-auto-media.git
+   git clone https://github.com/JasonLinn/next-auto-media.git
    cd next-auto-media
    ```
 
@@ -116,6 +116,31 @@ src/
 2. 連接到您的 GitHub 倉庫
 3. 設置環境變數
 4. 部署
+
+### 特別注意事項
+
+本項目使用 Tailwind CSS v4，需要特別注意以下事項：
+
+1. 確保 `postcss.config.mjs` 文件中使用的是 `@tailwindcss/postcss` 而不是 `tailwindcss`：
+   ```js
+   export default {
+     plugins: {
+       '@tailwindcss/postcss': {},
+       autoprefixer: {},
+     },
+   };
+   ```
+
+2. 確保 `package.json` 中包含 `@tailwindcss/postcss` 依賴：
+   ```json
+   "devDependencies": {
+     "@tailwindcss/postcss": "^3.0.0",
+     "tailwindcss": "^4.0.14",
+     // 其他依賴...
+   }
+   ```
+
+3. 對於第三方 CSS 文件（如 `react-calendar/dist/Calendar.css`），建議創建自定義 CSS 文件以避免 Tailwind CSS 處理問題。
 
 ## 貢獻
 
