@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { FaPlus, FaFacebookSquare, FaYoutube, FaTiktok } from 'react-icons/fa';
 import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css';
+import '@/styles/calendar.css';
 
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
@@ -197,4 +197,4 @@ export default function CalendarPage() {
       </div>
     </div>
   );
-} 
+}
