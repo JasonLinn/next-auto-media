@@ -17,7 +17,7 @@ AutoMedia 是一個基於 Next.js 和 Vercel 的社交媒體管理平台，專�
 
 - **Next.js 15+**（App Router）
 - **React 19+**
-- **Tailwind CSS 4**（UI 樣式）
+- **Tailwind CSS 3**（UI 樣式）
 - **NextAuth.js**（認證系統）
 
 ### 後端
@@ -119,7 +119,7 @@ src/
 
 ### 特別注意事項
 
-本項目使用 Tailwind CSS v4，需要特別注意以下事項：
+本項目使用 Tailwind CSS v3，需要特別注意以下事項：
 
 1. 確保 `postcss.config.mjs` 文件配置正確：
    ```js
