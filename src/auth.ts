@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
-import Google from "next-auth/providers/google";
+import type { NextAuthConfig } from "next-auth";
+import GoogleProvider from "next-auth/providers/google";
 import { supabase } from '@/lib/supabase';
 
 // Google Drive 範圍
@@ -28,10 +29,23 @@ declare module "next-auth" {
   }
 }
 
+// 添加調試日誌
+const logger = {
+  error: (code: string, ...message: any[]) => {
+    console.error(`[NextAuth][Error][${code}]`, ...message);
+  },
+  warn: (code: string, ...message: any[]) => {
+    console.warn(`[NextAuth][Warn][${code}]`, ...message);
+  },
+  debug: (code: string, ...message: any[]) => {
+    console.log(`[NextAuth][Debug][${code}]`, ...message);
+  }
+};
+
 // 配置 NextAuth
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const authOptions: NextAuthConfig = {
   providers: [
-    Google({
+    GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
       authorization: {
@@ -43,14 +57,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
     }),
   ],
-  debug: true, // 啟用詳細調試
+  debug: process.env.NODE_ENV === "development",
   // 自定義日誌輸出
   events: {
-    async signIn(message) {
-      console.log('[Auth] 登入事件:', message);
+    signIn({ user, account }) {
+      console.log("[NextAuth] 用戶登入成功", { user, account });
     },
-    async signOut(message) {
-      console.log('[Auth] 登出事件:', message);
+    signOut() {
+      console.log("[NextAuth] 用戶登出");
+    },
+    session({ session }) {
+      console.log("[NextAuth] 會話更新", { session });
     }
   },
   callbacks: {
@@ -215,4 +232,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/auth/signin",
     error: "/auth/error",
   },
-}); 
+};
+
+export const { handlers, auth, signIn, signOut } = NextAuth(authOptions); 
