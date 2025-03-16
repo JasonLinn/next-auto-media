@@ -1,10 +1,16 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
-import { supabase } from "@/lib/supabase";
+import { supabase } from '@/lib/supabase';
 
-// 擴展 Session 類型
+// Google Drive 範圍
+const DriveScope = 'https://www.googleapis.com/auth/drive.readonly';
+
+// 擴展會話類型，添加訪問令牌
 declare module "next-auth" {
   interface Session {
+    accessToken?: string;
+    refreshToken?: string;
+    error?: string;
     user: {
       id?: string;
       name?: string | null;
@@ -12,12 +18,10 @@ declare module "next-auth" {
       image?: string | null;
       role?: string;
     };
-    accessToken?: string;
-    refreshToken?: string;
-    error?: string;
   }
 }
 
+// 配置 NextAuth
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Google({
@@ -25,18 +29,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
       authorization: {
         params: {
-          scope: "openid email profile https://www.googleapis.com/auth/drive.readonly",
-          prompt: "consent",
+          scope: `https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile ${DriveScope}`,
           access_type: "offline",
+          prompt: "consent",
           response_type: "code"
         }
       }
     }),
   ],
-  debug: true,
+  debug: process.env.NODE_ENV === 'development',
   callbacks: {
     async jwt({ token, account, profile }) {
-      // 初次登入時保存訪問令牌和刷新令牌
+      // 如果有賬戶信息，將訪問令牌添加到 token 中
       if (account) {
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
@@ -44,129 +48,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return token;
     },
-    async signIn({ user, account, profile }) {
-      console.log("signIn callback called", { user, account, profile });
-      
-      if (!user.email) {
-        console.error("用戶沒有提供電子郵件");
-        return false;
-      }
-
-      try {
-        // 檢查用戶是否已存在
-        try {
-          const { data: existingUser, error: fetchError } = await supabase
-            .from("users")
-            .select("*")
-            .eq("email", user.email)
-            .single();
-
-          if (fetchError) {
-            // 如果是表格不存在的錯誤，我們可以忽略它
-            if (fetchError.code === '42P01') {
-              console.warn("users 表格不存在，跳過 Supabase 操作");
-              return true; // 允許登入，即使表格不存在
-            } else if (fetchError.code !== "PGRST116") {
-              console.error("查詢用戶時出錯:", fetchError);
-              // 其他錯誤，但仍然允許登入
-              return true;
-            }
-          }
-
-          if (!existingUser) {
-            // 創建新用戶
-            try {
-              const { error: insertError } = await supabase.from("users").insert([
-                {
-                  email: user.email,
-                  name: user.name,
-                  avatar_url: user.image,
-                  provider: account?.provider,
-                  provider_id: account?.providerAccountId,
-                },
-              ]);
-
-              if (insertError) {
-                console.error("創建用戶時出錯:", insertError);
-                // 允許登入，即使創建用戶失敗
-              }
-            } catch (insertErr) {
-              console.error("創建用戶時發生異常:", insertErr);
-              // 允許登入，即使創建用戶失敗
-            }
-          } else {
-            // 更新現有用戶
-            try {
-              const { error: updateError } = await supabase
-                .from("users")
-                .update({
-                  name: user.name,
-                  avatar_url: user.image,
-                  last_sign_in: new Date().toISOString(),
-                })
-                .eq("email", user.email);
-
-              if (updateError) {
-                console.error("更新用戶時出錯:", updateError);
-                // 允許登入，即使更新用戶失敗
-              }
-            } catch (updateErr) {
-              console.error("更新用戶時發生異常:", updateErr);
-              // 允許登入，即使更新用戶失敗
-            }
-          }
-        } catch (dbErr) {
-          console.error("數據庫操作時發生異常:", dbErr);
-          // 允許登入，即使數據庫操作失敗
-        }
-
-        // 保存 OAuth 帳戶資訊
-        if (account) {
-          try {
-            const { error: accountError } = await supabase
-              .from("oauth_accounts")
-              .upsert(
-                {
-                  user_email: user.email,
-                  provider: account.provider,
-                  provider_account_id: account.providerAccountId,
-                  access_token: account.access_token,
-                  token_type: account.token_type,
-                  refresh_token: account.refresh_token,
-                  expires_at: account.expires_at
-                    ? new Date(account.expires_at * 1000).toISOString()
-                    : null,
-                  scope: account.scope,
-                  id_token: account.id_token,
-                },
-                { onConflict: "provider, provider_account_id" }
-              );
-
-            if (accountError) {
-              console.error("保存 OAuth 帳戶資訊時出錯:", accountError);
-              // 允許登入，即使保存 OAuth 帳戶資訊失敗
-            }
-          } catch (accountErr) {
-            console.error("保存 OAuth 帳戶資訊時發生異常:", accountErr);
-            // 允許登入，即使保存 OAuth 帳戶資訊失敗
-          }
-        }
-
-        console.log("登入成功");
-        return true;
-      } catch (error) {
-        console.error("登入過程中出錯:", error);
-        // 即使出錯，也允許登入
-        return true;
-      }
-    },
     async session({ session, token }) {
-      // 將訪問令牌添加到 session
-      if (token) {
-        session.accessToken = token.accessToken as string;
-        session.refreshToken = token.refreshToken as string;
-        session.error = token.error as string;
-      }
+      // 將訪問令牌從 token 添加到會話中
+      session.accessToken = token.accessToken as string;
+      session.refreshToken = token.refreshToken as string;
+      
+      // 記錄會話信息，用於調試
+      console.log('Session callback:', { 
+        hasAccessToken: !!session.accessToken,
+        hasRefreshToken: !!session.refreshToken
+      });
       
       if (session.user?.email) {
         try {
@@ -188,6 +79,92 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       }
       return session;
+    },
+    async signIn({ user, account, profile }) {
+      try {
+        // 確保有必要的信息
+        if (!account || !profile || !user.email) {
+          console.error('登入回調缺少必要信息:', { account, profile, user });
+          return false;
+        }
+
+        // 記錄 OAuth 信息，用於調試
+        console.log('OAuth 信息:', { 
+          provider: account.provider,
+          hasAccessToken: !!account.access_token,
+          hasRefreshToken: !!account.refresh_token,
+          tokenType: account.token_type,
+          scope: account.scope
+        });
+
+        // 檢查用戶是否已存在
+        try {
+          const { data: existingUser, error } = await supabase
+            .from("users")
+            .select("*")
+            .eq("email", user.email)
+            .single();
+
+          if (error && error.code !== "PGRST116") {
+            // PGRST116 表示沒有找到記錄，這是正常的
+            console.error("檢查用戶時出錯:", error);
+          }
+
+          // 如果用戶不存在，創建新用戶
+          if (!existingUser) {
+            const { error: insertError } = await supabase.from("users").insert({
+              id: user.id || crypto.randomUUID(),
+              email: user.email,
+              name: user.name,
+              avatar_url: user.image,
+              provider: account.provider,
+              provider_id: account.providerAccountId,
+              role: "user",
+              created_at: new Date().toISOString(),
+              last_sign_in: new Date().toISOString(),
+            });
+
+            if (insertError) {
+              console.error("創建用戶時出錯:", insertError);
+              // 如果是表不存在的錯誤 (42P01)，允許繼續
+              if (insertError.code !== "42P01") {
+                throw insertError;
+              }
+            }
+          } else {
+            // 更新用戶的最後登入時間
+            const { error: updateError } = await supabase
+              .from("users")
+              .update({
+                last_sign_in: new Date().toISOString(),
+                name: user.name || existingUser.name,
+                avatar_url: user.image || existingUser.avatar_url,
+              })
+              .eq("email", user.email);
+
+            if (updateError) {
+              console.error("更新用戶時出錯:", updateError);
+              // 如果是表不存在的錯誤 (42P01)，允許繼續
+              if (updateError.code !== "42P01") {
+                throw updateError;
+              }
+            }
+          }
+        } catch (dbError) {
+          console.error("處理用戶數據時出錯:", dbError);
+          // 如果是表不存在的錯誤 (42P01)，允許繼續
+          if (typeof dbError === 'object' && dbError !== null && 'code' in dbError && dbError.code === "42P01") {
+            console.warn("用戶表不存在，但允許繼續登入");
+          } else {
+            throw dbError;
+          }
+        }
+
+        return true;
+      } catch (error) {
+        console.error("登入回調出錯:", error);
+        return false;
+      }
     },
   },
   pages: {
