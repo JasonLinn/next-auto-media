@@ -12,6 +12,9 @@ declare module "next-auth" {
       image?: string | null;
       role?: string;
     };
+    accessToken?: string;
+    refreshToken?: string;
+    error?: string;
   }
 }
 
@@ -20,10 +23,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      authorization: {
+        params: {
+          scope: "openid email profile https://www.googleapis.com/auth/drive.readonly",
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
+        }
+      }
     }),
   ],
   debug: true,
   callbacks: {
+    async jwt({ token, account, profile }) {
+      // 初次登入時保存訪問令牌和刷新令牌
+      if (account) {
+        token.accessToken = account.access_token;
+        token.refreshToken = account.refresh_token;
+        token.expiresAt = account.expires_at;
+      }
+      return token;
+    },
     async signIn({ user, account, profile }) {
       console.log("signIn callback called", { user, account, profile });
       
@@ -140,7 +160,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return true;
       }
     },
-    async session({ session }) {
+    async session({ session, token }) {
+      // 將訪問令牌添加到 session
+      if (token) {
+        session.accessToken = token.accessToken as string;
+        session.refreshToken = token.refreshToken as string;
+        session.error = token.error as string;
+      }
+      
       if (session.user?.email) {
         try {
           // 從 Supabase 獲取用戶資訊
