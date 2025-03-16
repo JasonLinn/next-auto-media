@@ -19,6 +19,13 @@ declare module "next-auth" {
       role?: string;
     };
   }
+  
+  interface JWT {
+    accessToken?: string;
+    refreshToken?: string;
+    expiresAt?: number;
+    error?: string;
+  }
 }
 
 // 配置 NextAuth
@@ -42,10 +49,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, account, profile }) {
       // 如果有賬戶信息，將訪問令牌添加到 token 中
       if (account) {
+        console.log('JWT 回調 - 有賬戶信息:', { 
+          hasAccessToken: !!account.access_token,
+          hasRefreshToken: !!account.refresh_token,
+          tokenType: account.token_type,
+          scope: account.scope
+        });
+        
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
         token.expiresAt = account.expires_at;
       }
+      
+      // 記錄 token 信息，用於調試
+      console.log('JWT 回調 - 返回 token:', { 
+        hasAccessToken: !!token.accessToken,
+        hasRefreshToken: !!token.refreshToken,
+        expiresAt: token.expiresAt
+      });
+      
       return token;
     },
     async session({ session, token }) {
@@ -54,7 +76,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.refreshToken = token.refreshToken as string;
       
       // 記錄會話信息，用於調試
-      console.log('Session callback:', { 
+      console.log('Session 回調:', { 
         hasAccessToken: !!session.accessToken,
         hasRefreshToken: !!session.refreshToken
       });

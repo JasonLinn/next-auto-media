@@ -14,6 +14,15 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // 檢查是否有訪問令牌
+    if (!session.accessToken) {
+      console.error('會話中沒有訪問令牌');
+      return NextResponse.json(
+        { error: '缺少訪問令牌，請重新登入' },
+        { status: 401 }
+      );
+    }
+
     // 獲取查詢參數
     const url = new URL(req.url);
     const action = url.searchParams.get('action');
@@ -24,7 +33,7 @@ export async function GET(req: NextRequest) {
     const pageSize = url.searchParams.get('pageSize') ? parseInt(url.searchParams.get('pageSize')!) : undefined;
 
     // 獲取 Google Drive 客戶端
-    const drive = await getDriveClient(req);
+    const drive = await getDriveClient();
     
     if (!drive) {
       return NextResponse.json(

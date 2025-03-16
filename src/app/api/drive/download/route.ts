@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDriveClient, getFile, getDownloadLink } from '@/lib/google-drive';
+import { getDriveClient, getDownloadLink } from '@/lib/google-drive';
 import { auth } from '@/auth';
-import { Readable } from 'stream';
 
 // 處理 GET 請求
 export async function GET(req: NextRequest) {
@@ -11,6 +10,15 @@ export async function GET(req: NextRequest) {
     if (!session || !session.user) {
       return NextResponse.json(
         { error: '未授權，請先登入' },
+        { status: 401 }
+      );
+    }
+
+    // 檢查是否有訪問令牌
+    if (!session.accessToken) {
+      console.error('會話中沒有訪問令牌');
+      return NextResponse.json(
+        { error: '缺少訪問令牌，請重新登入' },
         { status: 401 }
       );
     }
@@ -27,7 +35,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 獲取 Google Drive 客戶端
-    const drive = await getDriveClient(req);
+    const drive = await getDriveClient();
     
     if (!drive) {
       return NextResponse.json(
@@ -36,69 +44,22 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 獲取文件詳情
-    const file = await getFile(drive, fileId);
-    if (!file) {
+    // 獲取下載鏈接
+    const downloadLink = await getDownloadLink(drive, fileId);
+
+    if (!downloadLink) {
       return NextResponse.json(
-        { error: '文件未找到' },
+        { error: '無法獲取下載鏈接' },
         { status: 404 }
       );
     }
 
-    // 如果是文件夾，返回錯誤
-    if (file.isFolder) {
-      return NextResponse.json(
-        { error: '無法下載文件夾' },
-        { status: 400 }
-      );
-    }
-
-    // 獲取下載鏈接
-    const downloadUrl = await getDownloadLink(drive, fileId);
-    if (!downloadUrl) {
-      return NextResponse.json(
-        { error: '無法獲取下載鏈接' },
-        { status: 500 }
-      );
-    }
-
-    // 獲取文件內容
-    try {
-      // 使用 fetch 獲取文件內容
-      const response = await fetch(downloadUrl);
-      
-      if (!response.ok) {
-        throw new Error(`下載失敗: ${response.status} ${response.statusText}`);
-      }
-
-      // 獲取文件數據
-      const data = await response.arrayBuffer();
-      
-      // 創建響應
-      const headers = new Headers();
-      headers.set('Content-Disposition', `attachment; filename="${encodeURIComponent(file.name)}"`);
-      headers.set('Content-Type', file.mimeType || 'application/octet-stream');
-      
-      if (file.size) {
-        headers.set('Content-Length', file.size);
-      }
-
-      // 返回文件
-      return new NextResponse(data, {
-        status: 200,
-        headers,
-      });
-    } catch (error) {
-      console.error('下載文件時出錯:', error);
-      return NextResponse.json(
-        { error: '下載文件時出錯' },
-        { status: 500 }
-      );
-    }
+    // 重定向到下載鏈接
+    return NextResponse.redirect(downloadLink);
   } catch (error) {
     console.error('處理下載請求時出錯:', error);
     return NextResponse.json(
-      { error: '處理請求時發生錯誤' },
+      { error: '處理下載請求時發生錯誤' },
       { status: 500 }
     );
   }
