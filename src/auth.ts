@@ -51,9 +51,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async signOut(message) {
       console.log('[Auth] 登出事件:', message);
-    },
-    async error(message) {
-      console.error('[Auth] 錯誤事件:', message);
     }
   },
   callbacks: {
