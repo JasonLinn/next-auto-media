@@ -44,18 +44,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
     }),
   ],
-  debug: process.env.NODE_ENV === 'development',
+  debug: true, // 啟用詳細調試
   callbacks: {
-    async jwt({ token, account, profile }) {
+    async jwt({ token, account, profile, user }) {
       // 如果有賬戶信息，將訪問令牌添加到 token 中
       if (account) {
         console.log('JWT 回調 - 有賬戶信息:', { 
           hasAccessToken: !!account.access_token,
           hasRefreshToken: !!account.refresh_token,
           tokenType: account.token_type,
-          scope: account.scope
+          scope: account.scope,
+          accountDetails: account
         });
         
+        // 確保將訪問令牌保存到 token 中
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
         token.expiresAt = account.expires_at;
@@ -65,21 +67,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       console.log('JWT 回調 - 返回 token:', { 
         hasAccessToken: !!token.accessToken,
         hasRefreshToken: !!token.refreshToken,
-        expiresAt: token.expiresAt
+        expiresAt: token.expiresAt,
+        tokenDetails: token
       });
       
       return token;
     },
-    async session({ session, token }) {
+    async session({ session, token, user }) {
       // 將訪問令牌從 token 添加到會話中
-      session.accessToken = token.accessToken as string;
-      session.refreshToken = token.refreshToken as string;
+      if (token) {
+        session.accessToken = token.accessToken as string;
+        session.refreshToken = token.refreshToken as string;
+        session.error = token.error as string | undefined;
+      }
       
       // 記錄會話信息，用於調試
       console.log('Session 回調:', { 
         hasAccessToken: !!session.accessToken,
         hasRefreshToken: !!session.refreshToken,
-        tokenDetails: token
+        tokenDetails: token,
+        sessionDetails: session
       });
       
       if (session.user?.email) {
@@ -117,7 +124,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           hasAccessToken: !!account.access_token,
           hasRefreshToken: !!account.refresh_token,
           tokenType: account.token_type,
-          scope: account.scope
+          scope: account.scope,
+          accountDetails: account
         });
 
         // 檢查用戶是否已存在

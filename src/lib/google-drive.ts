@@ -18,44 +18,37 @@ export interface DriveFile {
 }
 
 // 創建 Google Drive 客戶端
-export async function getDriveClient(): Promise<drive_v3.Drive | null> {
-  try {
-    // 從 auth() 獲取會話
-    const session = await auth();
-    
-    if (!session?.accessToken) {
-      console.error('未找到訪問令牌');
-      return null;
-    }
-
-    console.log('創建 Drive 客戶端:', { 
-      hasAccessToken: !!session.accessToken,
-      hasRefreshToken: !!session.refreshToken
+export async function getDriveClient() {
+  const session = await auth();
+  
+  // 檢查會話和訪問令牌
+  if (!session || !session.accessToken) {
+    console.error('getDriveClient: 缺少訪問令牌', { 
+      hasSession: !!session, 
+      hasAccessToken: session ? !!session.accessToken : false 
     });
-
-    // 創建 OAuth2 客戶端
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET
-    );
-
-    // 設置訪問令牌
-    oauth2Client.setCredentials({
-      access_token: session.accessToken,
-      refresh_token: session.refreshToken,
-    });
-
-    // 創建 Drive 客戶端
-    const drive = google.drive({
-      version: 'v3',
-      auth: oauth2Client,
-    });
-
-    return drive;
-  } catch (error) {
-    console.error('創建 Google Drive 客戶端時出錯:', error);
-    return null;
+    throw new Error('缺少訪問令牌，請重新登入');
   }
+  
+  console.log('getDriveClient: 創建客戶端', { 
+    hasAccessToken: !!session.accessToken,
+    tokenPrefix: session.accessToken.substring(0, 5) + '...'
+  });
+
+  // 創建 OAuth2 客戶端
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET
+  );
+
+  // 設置憑證
+  oauth2Client.setCredentials({
+    access_token: session.accessToken,
+    refresh_token: session.refreshToken
+  });
+
+  // 創建 Drive 客戶端
+  return google.drive({ version: 'v3', auth: oauth2Client });
 }
 
 // 列出文件和文件夾

@@ -1,93 +1,115 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDriveClient, listFiles, getFile, searchFiles } from '@/lib/google-drive';
 import { auth } from '@/auth';
+import { getDriveClient } from '@/lib/google-drive';
 
 // 處理 GET 請求
 export async function GET(req: NextRequest) {
   try {
-    // 檢查用戶是否已登入
+    // 檢查用戶是否已認證
     const session = await auth();
     if (!session || !session.user) {
-      return NextResponse.json(
-        { error: '未授權，請先登入' },
-        { status: 401 }
-      );
+      console.error('API 路由: 用戶未認證');
+      return NextResponse.json({ error: '未認證' }, { status: 401 });
     }
 
-    // 檢查是否有訪問令牌
+    // 檢查訪問令牌
     if (!session.accessToken) {
-      console.error('會話中沒有訪問令牌');
-      return NextResponse.json(
-        { error: '缺少訪問令牌，請重新登入' },
-        { status: 401 }
-      );
+      console.error('API 路由: 缺少訪問令牌');
+      return NextResponse.json({ error: '缺少訪問令牌，請重新登入' }, { status: 401 });
     }
 
     // 獲取查詢參數
-    const url = new URL(req.url);
-    const action = url.searchParams.get('action');
-    const folderId = url.searchParams.get('folderId') || 'root';
-    const fileId = url.searchParams.get('fileId');
-    const query = url.searchParams.get('query');
-    const pageToken = url.searchParams.get('pageToken') || undefined;
-    const pageSize = url.searchParams.get('pageSize') ? parseInt(url.searchParams.get('pageSize')!) : undefined;
-
-    // 獲取 Google Drive 客戶端
+    const searchParams = req.nextUrl.searchParams;
+    const action = searchParams.get('action');
+    
+    // 創建 Google Drive 客戶端
     const drive = await getDriveClient();
     
-    if (!drive) {
-      return NextResponse.json(
-        { error: '無法創建 Google Drive 客戶端' },
-        { status: 500 }
-      );
-    }
-
-    // 根據操作類型處理請求
+    // 根據操作執行不同的操作
     switch (action) {
       case 'list':
-        // 列出文件和文件夾
-        const result = await listFiles(drive, folderId, pageSize, pageToken);
-        return NextResponse.json(result);
-
+        return await listFiles(drive, searchParams);
       case 'get':
-        // 獲取單個文件詳情
-        if (!fileId) {
-          return NextResponse.json(
-            { error: '缺少文件 ID' },
-            { status: 400 }
-          );
-        }
-        const file = await getFile(drive, fileId);
-        if (!file) {
-          return NextResponse.json(
-            { error: '文件未找到' },
-            { status: 404 }
-          );
-        }
-        return NextResponse.json(file);
-
+        return await getFile(drive, searchParams);
       case 'search':
-        // 搜索文件
-        if (!query) {
-          return NextResponse.json(
-            { error: '缺少搜索關鍵詞' },
-            { status: 400 }
-          );
-        }
-        const searchResult = await searchFiles(drive, query, pageSize, pageToken);
-        return NextResponse.json(searchResult);
-
+        return await searchFiles(drive, searchParams);
       default:
-        return NextResponse.json(
-          { error: '無效的操作' },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: '無效的操作' }, { status: 400 });
     }
   } catch (error) {
-    console.error('處理 Google Drive API 請求時出錯:', error);
-    return NextResponse.json(
-      { error: '處理請求時發生錯誤' },
-      { status: 500 }
-    );
+    console.error('處理 Drive API 請求時出錯:', error);
+    
+    // 檢查是否是訪問令牌錯誤
+    if (error instanceof Error && error.message.includes('訪問令牌')) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+    
+    return NextResponse.json({ error: '處理請求時出錯' }, { status: 500 });
+  }
+}
+
+// 列出文件
+async function listFiles(drive: any, params: URLSearchParams) {
+  try {
+    const folderId = params.get('folderId') || 'root';
+    const pageToken = params.get('pageToken') || undefined;
+    const pageSize = Number(params.get('pageSize')) || 100;
+
+    const response = await drive.files.list({
+      q: `'${folderId}' in parents and trashed = false`,
+      pageSize: pageSize,
+      pageToken: pageToken,
+      fields: 'nextPageToken, files(id, name, mimeType, size, modifiedTime, thumbnailLink, webViewLink)',
+    });
+
+    return NextResponse.json(response.data);
+  } catch (error) {
+    console.error('列出文件時出錯:', error);
+    return NextResponse.json({ error: '列出文件時出錯' }, { status: 500 });
+  }
+}
+
+// 獲取文件詳情
+async function getFile(drive: any, params: URLSearchParams) {
+  try {
+    const fileId = params.get('fileId');
+    if (!fileId) {
+      return NextResponse.json({ error: '缺少文件 ID' }, { status: 400 });
+    }
+
+    const response = await drive.files.get({
+      fileId: fileId,
+      fields: 'id, name, mimeType, size, modifiedTime, thumbnailLink, webViewLink, webContentLink',
+    });
+
+    return NextResponse.json(response.data);
+  } catch (error) {
+    console.error('獲取文件詳情時出錯:', error);
+    return NextResponse.json({ error: '獲取文件詳情時出錯' }, { status: 500 });
+  }
+}
+
+// 搜索文件
+async function searchFiles(drive: any, params: URLSearchParams) {
+  try {
+    const query = params.get('query');
+    if (!query) {
+      return NextResponse.json({ error: '缺少搜索查詢' }, { status: 400 });
+    }
+
+    const pageToken = params.get('pageToken') || undefined;
+    const pageSize = Number(params.get('pageSize')) || 100;
+
+    const response = await drive.files.list({
+      q: `name contains '${query}' and trashed = false`,
+      pageSize: pageSize,
+      pageToken: pageToken,
+      fields: 'nextPageToken, files(id, name, mimeType, size, modifiedTime, thumbnailLink, webViewLink)',
+    });
+
+    return NextResponse.json(response.data);
+  } catch (error) {
+    console.error('搜索文件時出錯:', error);
+    return NextResponse.json({ error: '搜索文件時出錯' }, { status: 500 });
   }
 } 
