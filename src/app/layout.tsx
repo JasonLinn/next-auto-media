@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import AuthProvider from "@/components/auth/AuthProvider";
 
 export const metadata: Metadata = {
-  title: "AutoMedia - 社交媒體管理平台",
-  description: "一站式社交媒體管理平台，輕鬆連接 Google Drive、上傳視頻、排程發布到不同社交媒體平台。",
+  title: "Next Auto Media",
+  description: "自動化媒體處理平台",
 };
 
 export default function RootLayout({
@@ -13,7 +14,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-TW">
-      <body className="font-sans">{children}</body>
+      <body className="font-sans">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

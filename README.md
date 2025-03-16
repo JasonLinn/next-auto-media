@@ -101,12 +101,27 @@ src/
    FACEBOOK_APP_SECRET=your-facebook-app-secret
    ```
 
-4. 啟動開發服務器
+4. 設置 Google OAuth
+   - 前往 [Google Cloud Console](https://console.cloud.google.com/)
+   - 創建一個新項目
+   - 啟用 Google Drive API 和 OAuth 2.0
+   - 創建 OAuth 2.0 客戶端 ID
+   - 設置授權重定向 URI 為 `http://localhost:3000/api/auth/callback/google`（開發環境）和 `https://your-domain.com/api/auth/callback/google`（生產環境）
+   - 將客戶端 ID 和客戶端密鑰添加到 `.env.local` 文件中
+
+5. 設置 Supabase
+   - 創建 Supabase 項目
+   - 創建以下表格：
+     - `users`：存儲用戶資訊
+     - `oauth_accounts`：存儲 OAuth 帳戶資訊
+   - 將 Supabase URL 和匿名密鑰添加到 `.env.local` 文件中
+
+6. 啟動開發服務器
    ```
    npm run dev
    ```
 
-5. 在瀏覽器中訪問 [http://localhost:3000](http://localhost:3000)
+7. 在瀏覽器中訪問 [http://localhost:3000](http://localhost:3000)
 
 ## 部署
 
