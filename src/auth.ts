@@ -78,7 +78,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // 記錄會話信息，用於調試
       console.log('Session 回調:', { 
         hasAccessToken: !!session.accessToken,
-        hasRefreshToken: !!session.refreshToken
+        hasRefreshToken: !!session.refreshToken,
+        tokenDetails: token
       });
       
       if (session.user?.email) {
