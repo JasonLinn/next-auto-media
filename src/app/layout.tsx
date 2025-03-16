@@ -1,12 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
-
-const inter = Inter({ 
-  subsets: ["latin"],
-  display: 'swap',
-  fallback: ['system-ui', 'sans-serif']
-});
 
 export const metadata: Metadata = {
   title: "AutoMedia - 社交媒體管理平台",
@@ -18,11 +11,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const bodyClassName = inter?.className || '';
-  
   return (
     <html lang="zh-TW">
-      <body className={bodyClassName}>{children}</body>
+      <body className="font-sans">{children}</body>
     </html>
   );
 }
