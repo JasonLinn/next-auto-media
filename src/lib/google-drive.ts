@@ -1,6 +1,7 @@
 import { google, drive_v3 } from 'googleapis';
 import { getToken } from 'next-auth/jwt';
 import { NextRequest } from 'next/server';
+import { auth } from '@/auth';
 
 // 定義文件類型
 export interface DriveFile {
@@ -20,13 +21,10 @@ export interface DriveFile {
 // 創建 Google Drive 客戶端
 export async function getDriveClient(req: NextRequest): Promise<drive_v3.Drive | null> {
   try {
-    // 從請求中獲取 JWT token
-    const token = await getToken({
-      req: req as any,
-      secret: process.env.NEXTAUTH_SECRET,
-    });
-
-    if (!token || !token.accessToken) {
+    // 從 auth() 獲取會話
+    const session = await auth();
+    
+    if (!session?.accessToken) {
       console.error('未找到訪問令牌');
       return null;
     }
@@ -39,8 +37,8 @@ export async function getDriveClient(req: NextRequest): Promise<drive_v3.Drive |
 
     // 設置訪問令牌
     oauth2Client.setCredentials({
-      access_token: token.accessToken as string,
-      refresh_token: token.refreshToken as string,
+      access_token: session.accessToken,
+      refresh_token: session.refreshToken,
     });
 
     // 創建 Drive 客戶端

@@ -3,15 +3,17 @@
 import { useState, useEffect } from 'react';
 import { DriveFile } from '@/lib/google-drive';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Folder, File, ChevronLeft, Search, Download, ExternalLink, Loader2 } from 'lucide-react';
+import { Folder, File, ChevronLeft, Search, Download, ExternalLink, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { formatFileSize, formatDate } from '@/lib/utils';
+import { useSession } from 'next-auth/react';
 
 export default function FileBrowser() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const folderId = searchParams?.get('folderId') || 'root';
   const query = searchParams?.get('query') || '';
+  const { data: session, status } = useSession();
 
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +25,19 @@ export default function FileBrowser() {
   // 加載文件列表
   useEffect(() => {
     async function loadFiles() {
+      // 如果用戶未登入，不加載文件
+      if (status === 'unauthenticated') {
+        setError('請先登入以訪問您的 Google Drive');
+        setLoading(false);
+        return;
+      }
+
+      // 如果正在檢查登入狀態，保持加載狀態
+      if (status === 'loading') {
+        setLoading(true);
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
@@ -63,7 +78,7 @@ export default function FileBrowser() {
     }
 
     loadFiles();
-  }, [folderId, query]);
+  }, [folderId, query, status]);
 
   // 加載麵包屑
   async function loadBreadcrumbs(fileId: string) {
@@ -117,7 +132,12 @@ export default function FileBrowser() {
       router.push(`/drive?folderId=${encodeURIComponent(file.id)}`);
     } else {
       // 對於非文件夾，可以預覽或下載
-      window.open(file.webViewLink, '_blank');
+      if (file.webViewLink) {
+        window.open(file.webViewLink, '_blank');
+      } else {
+        // 如果沒有預覽鏈接，嘗試下載
+        downloadFile({ stopPropagation: () => {} } as React.MouseEvent, file);
+      }
     }
   }
 
@@ -125,6 +145,30 @@ export default function FileBrowser() {
   function downloadFile(e: React.MouseEvent, file: DriveFile) {
     e.stopPropagation();
     window.open(`/api/drive/download?fileId=${encodeURIComponent(file.id)}`, '_blank');
+  }
+
+  // 重新加載
+  function handleRetry() {
+    setLoading(true);
+    setError(null);
+    router.refresh();
+  }
+
+  // 如果用戶未登入，顯示登入提示
+  if (status === 'unauthenticated') {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+        <h2 className="text-xl font-semibold mb-2">需要登入</h2>
+        <p className="text-gray-600 mb-4">請先登入以訪問您的 Google Drive 文件</p>
+        <Link
+          href="/auth/signin?callbackUrl=/drive"
+          className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+        >
+          登入
+        </Link>
+      </div>
+    );
   }
 
   return (
@@ -199,8 +243,18 @@ export default function FileBrowser() {
 
       {/* 錯誤訊息 */}
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 flex items-center justify-between">
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 mr-2" />
+            <span>{error}</span>
+          </div>
+          <button 
+            onClick={handleRetry}
+            className="flex items-center text-blue-500 hover:text-blue-700"
+          >
+            <RefreshCw className="h-4 w-4 mr-1" />
+            重試
+          </button>
         </div>
       )}
 
@@ -213,13 +267,13 @@ export default function FileBrowser() {
       )}
 
       {/* 文件列表 */}
-      {!loading && files.length === 0 && (
+      {!loading && !error && files.length === 0 && (
         <div className="text-center py-12 text-gray-500">
           {isSearching ? '沒有找到符合條件的文件' : '此文件夾為空'}
         </div>
       )}
 
-      {!loading && files.length > 0 && (
+      {!loading && !error && files.length > 0 && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">

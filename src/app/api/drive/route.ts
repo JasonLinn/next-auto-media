@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDriveClient, listFiles, getFile, searchFiles } from '@/lib/google-drive';
+import { auth } from '@/auth';
 
 // 處理 GET 請求
 export async function GET(req: NextRequest) {
   try {
+    // 檢查用戶是否已登入
+    const session = await auth();
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { error: '未授權，請先登入' },
+        { status: 401 }
+      );
+    }
+
     // 獲取查詢參數
     const url = new URL(req.url);
     const action = url.searchParams.get('action');
@@ -18,8 +28,8 @@ export async function GET(req: NextRequest) {
     
     if (!drive) {
       return NextResponse.json(
-        { error: '未授權，請先登入' },
-        { status: 401 }
+        { error: '無法創建 Google Drive 客戶端' },
+        { status: 500 }
       );
     }
 
