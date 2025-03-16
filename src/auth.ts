@@ -39,7 +39,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           scope: `https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile ${DriveScope}`,
           access_type: "offline",
           prompt: "consent",
-          response_type: "code"
         }
       }
     }),
