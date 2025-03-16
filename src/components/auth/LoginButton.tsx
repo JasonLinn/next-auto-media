@@ -3,6 +3,7 @@
 import { signIn, signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { useState } from "react";
+import OfflineLogoutButton from "./OfflineLogoutButton";
 
 export default function LoginButton() {
   const { data: session, status } = useSession();
@@ -76,10 +77,11 @@ export default function LoginButton() {
           >
             {isLoggingOut ? "登出中..." : "登出"}
           </button>
+          <OfflineLogoutButton />
         </div>
         {error && (
           <div className="text-sm text-red-600">
-            錯誤: {error}
+            錯誤: {error} <span className="ml-2 text-gray-500">(嘗試使用離線登出)</span>
           </div>
         )}
       </div>
