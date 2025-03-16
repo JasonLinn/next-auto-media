@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDriveClient, getDownloadLink } from '@/lib/google-drive';
 import { auth } from '@/auth';
+import { getDriveClient, getDownloadLink } from '@/lib/google-drive';
 
 // 處理 GET 請求
 export async function GET(req: NextRequest) {
@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     const session = await auth();
     if (!session || !session.user) {
       return NextResponse.json(
-        { error: '未授權，請先登入' },
+        { error: '未認證' },
         { status: 401 }
       );
     }
