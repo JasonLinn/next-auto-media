@@ -2,10 +2,24 @@
 
 import { signIn, signOut, useSession } from "next-auth/react";
 import Link from "next/link";
+import { useState } from "react";
 
 export default function LoginButton() {
   const { data: session, status } = useSession();
   const isLoading = status === "loading";
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleSignOut = async () => {
+    try {
+      setIsLoggingOut(true);
+      console.log("[Auth] 開始登出流程");
+      await signOut({ callbackUrl: "/" });
+      console.log("[Auth] 登出請求已發送");
+    } catch (error) {
+      console.error("[Auth] 登出時出錯:", error);
+      setIsLoggingOut(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -32,10 +46,13 @@ export default function LoginButton() {
           <span className="text-sm font-medium">{session.user?.name}</span>
         </div>
         <button
-          onClick={() => signOut({ callbackUrl: "/" })}
-          className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+          onClick={handleSignOut}
+          disabled={isLoggingOut}
+          className={`rounded-md ${
+            isLoggingOut ? "bg-gray-400" : "bg-red-600 hover:bg-red-700"
+          } px-4 py-2 text-sm font-medium text-white`}
         >
-          登出
+          {isLoggingOut ? "登出中..." : "登出"}
         </button>
       </div>
     );
