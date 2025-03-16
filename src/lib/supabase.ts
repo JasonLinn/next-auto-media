@@ -27,7 +27,10 @@ export const supabase = createClient(
 // 如果在開發環境中且沒有 Supabase 環境變數，使用模擬的方法
 if (process.env.NODE_ENV === 'development' && (!supabaseUrl || !supabaseAnonKey)) {
   // 覆蓋 supabase 方法
-  const mockData = {
+  const mockData: {
+    users: Array<Record<string, any>>;
+    oauth_accounts: Array<Record<string, any>>;
+  } = {
     users: [],
     oauth_accounts: [],
   };
@@ -40,16 +43,16 @@ if (process.env.NODE_ENV === 'development' && (!supabaseUrl || !supabaseAnonKey)
           single: async () => ({ data: null, error: null }),
         }),
       }),
-      insert: async (data: any) => {
+      insert: async (data: Record<string, any>[]) => {
         if (table === 'users') {
           mockData.users.push(data[0]);
         }
         return { error: null };
       },
-      update: async (data: any) => ({
+      update: async (data: Record<string, any>) => ({
         eq: async () => ({ error: null }),
       }),
-      upsert: async (data: any) => {
+      upsert: async (data: Record<string, any>) => {
         if (table === 'oauth_accounts') {
           mockData.oauth_accounts.push(data);
         }
