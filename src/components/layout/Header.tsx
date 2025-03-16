@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FaBell, FaUserCircle, FaSearch, FaChevronDown } from 'react-icons/fa';
+import { FaBell, FaUserCircle, FaSearch, FaChevronDown, FaYoutube, FaFacebookSquare, FaCalendarAlt } from 'react-icons/fa';
 
 export default function Header() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -131,9 +131,4 @@ export default function Header() {
       </div>
     </header>
   );
-}
-
-// 這些組件在實際使用時需要導入
-const FaYoutube = () => <span>YouTube</span>;
-const FaFacebookSquare = () => <span>Facebook</span>;
-const FaCalendarAlt = () => <span>Calendar</span>; 
+} 
