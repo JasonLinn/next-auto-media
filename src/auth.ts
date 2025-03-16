@@ -44,11 +44,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   debug: true, // 啟用詳細調試
+  // 自定義日誌輸出
+  events: {
+    async signIn(message) {
+      console.log('[Auth] 登入事件:', message);
+    },
+    async signOut(message) {
+      console.log('[Auth] 登出事件:', message);
+    },
+    async error(message) {
+      console.error('[Auth] 錯誤事件:', message);
+    }
+  },
   callbacks: {
     async jwt({ token, account, profile, user }) {
       // 如果有賬戶信息，將訪問令牌添加到 token 中
       if (account) {
-        console.log('JWT 回調 - 有賬戶信息:', { 
+        console.log('[Auth] JWT 回調 - 有賬戶信息:', { 
           hasAccessToken: !!account.access_token,
           hasRefreshToken: !!account.refresh_token,
           tokenType: account.token_type,
@@ -63,11 +75,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       
       // 記錄 token 信息，用於調試
-      console.log('JWT 回調 - 返回 token:', { 
+      console.log('[Auth] JWT 回調 - 返回 token:', { 
         hasAccessToken: !!token.accessToken,
         hasRefreshToken: !!token.refreshToken,
         expiresAt: token.expiresAt,
-        tokenDetails: token
       });
       
       return token;
@@ -81,11 +92,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       
       // 記錄會話信息，用於調試
-      console.log('Session 回調:', { 
+      console.log('[Auth] Session 回調:', { 
         hasAccessToken: !!session.accessToken,
         hasRefreshToken: !!session.refreshToken,
-        tokenDetails: token,
-        sessionDetails: session
+        user: session.user,
       });
       
       if (session.user?.email) {
@@ -103,28 +113,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             session.user.role = data.role;
           }
         } catch (error) {
-          console.error("獲取用戶資訊時出錯:", error);
+          console.error("[Auth] 獲取用戶資訊時出錯:", error);
           // 即使出錯，也返回原始 session
         }
       }
       return session;
     },
     async signIn({ user, account, profile }) {
+      console.log('[Auth] 開始登入流程:', { 
+        hasUser: !!user, 
+        hasAccount: !!account, 
+        hasProfile: !!profile,
+        userEmail: user?.email
+      });
+      
       try {
         // 確保有必要的信息
         if (!account || !profile || !user.email) {
-          console.error('登入回調缺少必要信息:', { account, profile, user });
+          console.error('[Auth] 登入回調缺少必要信息:', { account, profile, user });
           return false;
         }
 
         // 記錄 OAuth 信息，用於調試
-        console.log('OAuth 信息:', { 
+        console.log('[Auth] OAuth 信息:', { 
           provider: account.provider,
           hasAccessToken: !!account.access_token,
           hasRefreshToken: !!account.refresh_token,
           tokenType: account.token_type,
           scope: account.scope,
-          accountDetails: account
         });
 
         // 檢查用戶是否已存在
@@ -137,7 +153,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
           if (error && error.code !== "PGRST116") {
             // PGRST116 表示沒有找到記錄，這是正常的
-            console.error("檢查用戶時出錯:", error);
+            console.error("[Auth] 檢查用戶時出錯:", error);
           }
 
           // 如果用戶不存在，創建新用戶
@@ -155,7 +171,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             });
 
             if (insertError) {
-              console.error("創建用戶時出錯:", insertError);
+              console.error("[Auth] 創建用戶時出錯:", insertError);
               // 如果是表不存在的錯誤 (42P01)，允許繼續
               if (insertError.code !== "42P01") {
                 throw insertError;
@@ -173,7 +189,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               .eq("email", user.email);
 
             if (updateError) {
-              console.error("更新用戶時出錯:", updateError);
+              console.error("[Auth] 更新用戶時出錯:", updateError);
               // 如果是表不存在的錯誤 (42P01)，允許繼續
               if (updateError.code !== "42P01") {
                 throw updateError;
@@ -181,18 +197,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             }
           }
         } catch (dbError) {
-          console.error("處理用戶數據時出錯:", dbError);
+          console.error("[Auth] 處理用戶數據時出錯:", dbError);
           // 如果是表不存在的錯誤 (42P01)，允許繼續
           if (typeof dbError === 'object' && dbError !== null && 'code' in dbError && dbError.code === "42P01") {
-            console.warn("用戶表不存在，但允許繼續登入");
+            console.warn("[Auth] 用戶表不存在，但允許繼續登入");
           } else {
             throw dbError;
           }
         }
 
+        console.log('[Auth] 登入成功:', user.email);
         return true;
       } catch (error) {
-        console.error("登入回調出錯:", error);
+        console.error("[Auth] 登入回調出錯:", error);
         return false;
       }
     },
