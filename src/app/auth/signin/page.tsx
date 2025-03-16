@@ -1,17 +1,37 @@
-import { redirect } from "next/navigation";
-import { getProviders } from "next-auth/react";
-import SignInForm from "@/components/auth/SignInForm";
-import { auth } from "@/auth";
+"use client";
 
-export default async function SignInPage() {
-  const session = await auth();
+import { redirect } from "next/navigation";
+import { getProviders, useSession } from "next-auth/react";
+import SignInForm from "@/components/auth/SignInForm";
+import { useEffect, useState } from "react";
+
+export default function SignInPage() {
+  const { data: session, status } = useSession();
+  const [providers, setProviders] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchProviders = async () => {
+      const providers = await getProviders();
+      setProviders(providers);
+    };
+    fetchProviders();
+  }, []);
 
   // 如果用戶已登入，重定向到首頁
-  if (session) {
-    redirect("/");
-  }
+  useEffect(() => {
+    if (session) {
+      redirect("/");
+    }
+  }, [session]);
 
-  const providers = await getProviders();
+  if (status === "loading") {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="mt-4 text-gray-600">載入中...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
