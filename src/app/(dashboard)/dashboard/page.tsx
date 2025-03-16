@@ -1,167 +1,168 @@
 'use client';
 
 import { useState } from 'react';
+import { FaYoutube, FaFacebook, FaInstagram, FaTiktok, FaTwitter } from 'react-icons/fa';
 import Link from 'next/link';
-import { FaCalendarAlt, FaPhotoVideo, FaGoogle, FaFacebookSquare, FaYoutube, FaTiktok } from 'react-icons/fa';
 
 export default function Dashboard() {
-  const [upcomingPosts, setUpcomingPosts] = useState([
-    { id: 1, title: '新產品發布', platform: 'YouTube', scheduledFor: '2025-03-20T10:00:00Z', status: 'scheduled' },
-    { id: 2, title: '促銷活動', platform: 'Facebook', scheduledFor: '2025-03-22T14:30:00Z', status: 'scheduled' },
-    { id: 3, title: '短片教學', platform: 'TikTok', scheduledFor: '2025-03-25T09:15:00Z', status: 'scheduled' },
+  // 使用 useState 但不使用 setter 函數，可以使用 _ 來忽略
+  const [upcomingPosts, _] = useState([
+    { id: 1, title: '新產品發布', platform: 'YouTube', scheduledTime: '2025-03-20T14:00:00', status: 'scheduled' },
+    { id: 2, title: '促銷活動', platform: 'Facebook', scheduledTime: '2025-03-21T10:30:00', status: 'scheduled' },
+    { id: 3, title: '用戶評價分享', platform: 'Instagram', scheduledTime: '2025-03-22T16:00:00', status: 'scheduled' },
+  ]);
+  
+  // 使用 useState 但不使用 setter 函數，可以使用 _ 來忽略
+  const [recentPosts, __] = useState([
+    { id: 4, title: '產品教學', platform: 'YouTube', publishedTime: '2025-03-15T11:00:00', status: 'published' },
+    { id: 5, title: '客戶案例', platform: 'Twitter', publishedTime: '2025-03-14T09:15:00', status: 'published' },
+    { id: 6, title: '幕後花絮', platform: 'TikTok', publishedTime: '2025-03-13T15:30:00', status: 'published' },
   ]);
 
-  const [recentPosts, setRecentPosts] = useState([
-    { id: 4, title: '公司更新', platform: 'YouTube', publishedAt: '2025-03-10T11:00:00Z', status: 'published', views: 1240 },
-    { id: 5, title: '用戶見證', platform: 'Facebook', publishedAt: '2025-03-12T15:45:00Z', status: 'published', likes: 89 },
-    { id: 6, title: '產品示範', platform: 'TikTok', publishedAt: '2025-03-15T08:30:00Z', status: 'published', views: 3500 },
-  ]);
-
+  // 獲取平台圖標
   const getPlatformIcon = (platform: string) => {
-    switch (platform) {
-      case 'YouTube':
+    switch (platform.toLowerCase()) {
+      case 'youtube':
         return <FaYoutube className="text-red-600" />;
-      case 'Facebook':
-        return <FaFacebookSquare className="text-blue-600" />;
-      case 'TikTok':
+      case 'facebook':
+        return <FaFacebook className="text-blue-600" />;
+      case 'instagram':
+        return <FaInstagram className="text-pink-600" />;
+      case 'tiktok':
         return <FaTiktok className="text-black" />;
+      case 'twitter':
+        return <FaTwitter className="text-blue-400" />;
       default:
         return null;
     }
   };
 
+  // 格式化日期
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleDateString('zh-TW', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">儀表板</h1>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6">儀表板</h1>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">快速統計</h2>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-500">排程發布</p>
-              <p className="text-2xl font-bold">{upcomingPosts.length}</p>
-            </div>
-            <div className="bg-green-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-500">已發布</p>
-              <p className="text-2xl font-bold">{recentPosts.length}</p>
-            </div>
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-500">媒體檔案</p>
-              <p className="text-2xl font-bold">12</p>
-            </div>
-            <div className="bg-yellow-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-500">已連接平台</p>
-              <p className="text-2xl font-bold">3</p>
-            </div>
-          </div>
+      {/* 快速統計 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-medium mb-2">本月發布</h3>
+          <p className="text-3xl font-bold">12</p>
         </div>
-        
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">快速操作</h2>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Link href="/calendar" className="flex flex-col items-center justify-center bg-gray-50 p-4 rounded-lg hover:bg-gray-100 transition-colors">
-              <FaCalendarAlt className="text-2xl mb-2 text-blue-500" />
-              <span>查看日曆</span>
-            </Link>
-            <Link href="/media" className="flex flex-col items-center justify-center bg-gray-50 p-4 rounded-lg hover:bg-gray-100 transition-colors">
-              <FaPhotoVideo className="text-2xl mb-2 text-purple-500" />
-              <span>媒體庫</span>
-            </Link>
-            <Link href="/drive" className="flex flex-col items-center justify-center bg-gray-50 p-4 rounded-lg hover:bg-gray-100 transition-colors">
-              <FaGoogle className="text-2xl mb-2 text-red-500" />
-              <span>Google Drive</span>
-            </Link>
-            <Link href="/create" className="flex flex-col items-center justify-center bg-blue-500 p-4 rounded-lg hover:bg-blue-600 transition-colors text-white">
-              <span className="text-2xl mb-2">+</span>
-              <span>新建發布</span>
-            </Link>
-          </div>
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-medium mb-2">排程中</h3>
+          <p className="text-3xl font-bold">8</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-medium mb-2">總觀看次數</h3>
+          <p className="text-3xl font-bold">24,583</p>
         </div>
       </div>
       
-      <div className="grid grid-cols-1 gap-8">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">即將發布</h2>
-            <Link href="/calendar" className="text-blue-500 hover:underline">查看全部</Link>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">標題</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">平台</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">排程時間</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">狀態</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {upcomingPosts.map((post) => (
-                  <tr key={post.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{post.title}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex items-center">
-                        {getPlatformIcon(post.platform)}
-                        <span className="ml-2">{post.platform}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(post.scheduledFor)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                        已排程
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      {/* 快速操作 */}
+      <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <h2 className="text-xl font-bold mb-4">快速操作</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <Link href="/upload" className="bg-blue-500 text-white rounded-lg p-4 text-center hover:bg-blue-600 transition">
+            上傳新內容
+          </Link>
+          <Link href="/schedule" className="bg-green-500 text-white rounded-lg p-4 text-center hover:bg-green-600 transition">
+            排程發布
+          </Link>
+          <Link href="/analytics" className="bg-purple-500 text-white rounded-lg p-4 text-center hover:bg-purple-600 transition">
+            查看分析
+          </Link>
+          <Link href="/settings" className="bg-gray-500 text-white rounded-lg p-4 text-center hover:bg-gray-600 transition">
+            帳號設置
+          </Link>
         </div>
-        
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">最近發布</h2>
-            <Link href="/posts" className="text-blue-500 hover:underline">查看全部</Link>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">標題</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">平台</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">發布時間</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">表現</th>
+      </div>
+      
+      {/* 即將發布 */}
+      <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <h2 className="text-xl font-bold mb-4">即將發布</h2>
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b">
+                <th className="py-3 px-4 text-left">標題</th>
+                <th className="py-3 px-4 text-left">平台</th>
+                <th className="py-3 px-4 text-left">排程時間</th>
+                <th className="py-3 px-4 text-left">狀態</th>
+                <th className="py-3 px-4 text-left">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {upcomingPosts.map(post => (
+                <tr key={post.id} className="border-b hover:bg-gray-50">
+                  <td className="py-3 px-4">{post.title}</td>
+                  <td className="py-3 px-4 flex items-center">
+                    <span className="mr-2">{getPlatformIcon(post.platform)}</span>
+                    {post.platform}
+                  </td>
+                  <td className="py-3 px-4">{formatDate(post.scheduledTime)}</td>
+                  <td className="py-3 px-4">
+                    <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">
+                      排程中
+                    </span>
+                  </td>
+                  <td className="py-3 px-4">
+                    <button className="text-blue-500 hover:underline mr-3">編輯</button>
+                    <button className="text-red-500 hover:underline">取消</button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {recentPosts.map((post) => (
-                  <tr key={post.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{post.title}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex items-center">
-                        {getPlatformIcon(post.platform)}
-                        <span className="ml-2">{post.platform}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(post.publishedAt)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {post.views ? `${post.views} 次觀看` : `${post.likes} 個讚`}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      {/* 最近發布 */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-xl font-bold mb-4">最近發布</h2>
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b">
+                <th className="py-3 px-4 text-left">標題</th>
+                <th className="py-3 px-4 text-left">平台</th>
+                <th className="py-3 px-4 text-left">發布時間</th>
+                <th className="py-3 px-4 text-left">狀態</th>
+                <th className="py-3 px-4 text-left">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentPosts.map(post => (
+                <tr key={post.id} className="border-b hover:bg-gray-50">
+                  <td className="py-3 px-4">{post.title}</td>
+                  <td className="py-3 px-4 flex items-center">
+                    <span className="mr-2">{getPlatformIcon(post.platform)}</span>
+                    {post.platform}
+                  </td>
+                  <td className="py-3 px-4">{formatDate(post.publishedTime)}</td>
+                  <td className="py-3 px-4">
+                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                      已發布
+                    </span>
+                  </td>
+                  <td className="py-3 px-4">
+                    <button className="text-blue-500 hover:underline mr-3">查看</button>
+                    <button className="text-purple-500 hover:underline">分析</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

@@ -1,254 +1,194 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { FaGoogle, FaFolder, FaFile, FaVideo, FaImage, FaArrowLeft, FaSearch, FaCheck } from 'react-icons/fa';
+import { FaFolder, FaFile, FaFileImage, FaFileVideo, FaFilePdf, FaFileAlt, FaEllipsisV, FaPlus } from 'react-icons/fa';
 
-type DriveItem = {
-  id: string;
-  name: string;
-  type: 'folder' | 'video' | 'image' | 'document';
-  modifiedTime: string;
-  size?: string;
-  thumbnail?: string;
-};
-
-export default function GoogleDrive() {
-  const [isConnected, setIsConnected] = useState(false);
-  const [currentPath, setCurrentPath] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+export default function Drive() {
+  const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [currentFolder, setCurrentFolder] = useState('/');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
   
-  // 模擬 Google Drive 數據
-  const driveItems: { [key: string]: DriveItem[] } = {
-    'root': [
-      { id: 'folder1', name: '視頻', type: 'folder', modifiedTime: '2025-03-10T11:00:00Z' },
-      { id: 'folder2', name: '圖片', type: 'folder', modifiedTime: '2025-03-08T09:30:00Z' },
-      { id: 'folder3', name: '文檔', type: 'folder', modifiedTime: '2025-03-05T14:15:00Z' },
-      { id: 'video1', name: '公司介紹.mp4', type: 'video', modifiedTime: '2025-03-01T16:45:00Z', size: '24.5 MB', thumbnail: 'https://via.placeholder.com/100x60/2563eb/ffffff?text=視頻' },
-    ],
-    'folder1': [
-      { id: 'video2', name: '產品演示.mp4', type: 'video', modifiedTime: '2025-02-28T10:20:00Z', size: '18.2 MB', thumbnail: 'https://via.placeholder.com/100x60/f59e0b/ffffff?text=視頻' },
-      { id: 'video3', name: '用戶見證.mp4', type: 'video', modifiedTime: '2025-02-25T13:10:00Z', size: '12.7 MB', thumbnail: 'https://via.placeholder.com/100x60/10b981/ffffff?text=視頻' },
-      { id: 'video4', name: '教學視頻.mp4', type: 'video', modifiedTime: '2025-02-20T15:30:00Z', size: '32.1 MB', thumbnail: 'https://via.placeholder.com/100x60/8b5cf6/ffffff?text=視頻' },
-    ],
-    'folder2': [
-      { id: 'image1', name: '產品照片.jpg', type: 'image', modifiedTime: '2025-02-18T09:45:00Z', size: '3.5 MB', thumbnail: 'https://via.placeholder.com/100x60/ef4444/ffffff?text=圖片' },
-      { id: 'image2', name: '公司標誌.png', type: 'image', modifiedTime: '2025-02-15T14:20:00Z', size: '1.2 MB', thumbnail: 'https://via.placeholder.com/100x60/ec4899/ffffff?text=圖片' },
-      { id: 'image3', name: '團隊合照.jpg', type: 'image', modifiedTime: '2025-02-10T11:30:00Z', size: '4.8 MB', thumbnail: 'https://via.placeholder.com/100x60/3b82f6/ffffff?text=圖片' },
-    ],
-    'folder3': [
-      { id: 'doc1', name: '產品說明書.pdf', type: 'document', modifiedTime: '2025-02-08T16:15:00Z', size: '2.3 MB' },
-      { id: 'doc2', name: '市場分析.docx', type: 'document', modifiedTime: '2025-02-05T10:40:00Z', size: '1.5 MB' },
-      { id: 'doc3', name: '財務報告.xlsx', type: 'document', modifiedTime: '2025-02-01T13:25:00Z', size: '0.8 MB' },
-    ],
+  // 模擬文件數據
+  const files = [
+    { id: 1, name: '營銷視頻', type: 'folder', updatedAt: '2025-03-10T10:30:00Z', size: null },
+    { id: 2, name: '產品照片', type: 'folder', updatedAt: '2025-03-08T14:15:00Z', size: null },
+    { id: 3, name: '公司簡介.pdf', type: 'file', fileType: 'pdf', updatedAt: '2025-03-05T09:45:00Z', size: 2.4 },
+    { id: 4, name: '產品演示.mp4', type: 'file', fileType: 'video', updatedAt: '2025-03-01T16:20:00Z', size: 15.8 },
+    { id: 5, name: 'logo.png', type: 'file', fileType: 'image', updatedAt: '2025-02-28T11:10:00Z', size: 0.5 },
+    { id: 6, name: '市場分析.docx', type: 'file', fileType: 'document', updatedAt: '2025-02-25T13:40:00Z', size: 1.2 },
+  ];
+  
+  // 獲取文件圖標
+  const getFileIcon = (fileType: string) => {
+    switch (fileType) {
+      case 'folder':
+        return <FaFolder className="text-yellow-500" />;
+      case 'image':
+        return <FaFileImage className="text-blue-500" />;
+      case 'video':
+        return <FaFileVideo className="text-purple-500" />;
+      case 'pdf':
+        return <FaFilePdf className="text-red-500" />;
+      default:
+        return <FaFileAlt className="text-gray-500" />;
+    }
   };
-
+  
+  // 格式化日期
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' });
   };
-
-  const getCurrentItems = () => {
-    const pathKey = currentPath.length === 0 ? 'root' : currentPath[currentPath.length - 1];
-    return driveItems[pathKey] || [];
+  
+  // 格式化文件大小
+  const formatFileSize = (size: number | null) => {
+    if (size === null) return '';
+    return `${size} MB`;
+  };
+  
+  // 創建新文件夾
+  const createNewFolder = () => {
+    // 這裡只是模擬創建文件夾，實際應用中需要與後端 API 交互
+    console.log(`創建新文件夾: ${newFolderName} 在 ${currentFolder}`);
+    setShowCreateModal(false);
+    setNewFolderName('');
   };
 
-  const navigateToFolder = (folderId: string, folderName: string) => {
-    setCurrentPath([...currentPath, folderId]);
-  };
-
-  const navigateBack = () => {
-    setCurrentPath(currentPath.slice(0, -1));
-  };
-
-  const toggleSelectItem = (itemId: string) => {
-    if (selectedItems.includes(itemId)) {
-      setSelectedItems(selectedItems.filter(id => id !== itemId));
-    } else {
-      setSelectedItems([...selectedItems, itemId]);
-    }
-  };
-
-  const getItemIcon = (type: string) => {
-    switch (type) {
-      case 'folder':
-        return <FaFolder className="text-yellow-500" />;
-      case 'video':
-        return <FaVideo className="text-blue-500" />;
-      case 'image':
-        return <FaImage className="text-green-500" />;
-      case 'document':
-        return <FaFile className="text-red-500" />;
-      default:
-        return <FaFile className="text-gray-500" />;
-    }
-  };
-
-  const filteredItems = getCurrentItems().filter(item => 
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const handleConnect = () => {
-    // 模擬 Google Drive 連接
-    setIsConnected(true);
-  };
-
-  const handleImport = () => {
-    // 模擬導入選中的文件
-    alert(`已選擇 ${selectedItems.length} 個文件進行導入`);
-  };
-
-  if (!isConnected) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Google Drive</h1>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md p-8 max-w-md mx-auto text-center">
-          <FaGoogle className="text-6xl text-red-500 mx-auto mb-6" />
-          <h2 className="text-2xl font-bold mb-4">連接您的 Google Drive</h2>
-          <p className="text-gray-600 mb-6">
-            連接您的 Google Drive 帳戶以瀏覽和選擇媒體文件。我們只會讀取您的文件，不會進行任何修改。
-          </p>
+  return (
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Google Drive</h1>
+        <div className="flex space-x-4">
           <button 
-            onClick={handleConnect}
-            className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg flex items-center justify-center mx-auto"
+            className="bg-white border border-gray-300 rounded-md px-3 py-1 text-sm"
+            onClick={() => setView('grid')}
           >
-            <FaGoogle className="mr-2" />
-            連接 Google Drive
+            網格視圖
+          </button>
+          <button 
+            className="bg-white border border-gray-300 rounded-md px-3 py-1 text-sm"
+            onClick={() => setView('list')}
+          >
+            列表視圖
+          </button>
+          <button 
+            className="bg-blue-500 text-white rounded-md px-3 py-1 text-sm flex items-center"
+            onClick={() => setShowCreateModal(true)}
+          >
+            <FaPlus className="mr-1" /> 新建
           </button>
         </div>
       </div>
-    );
-  }
-
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Google Drive</h1>
-        <button 
-          onClick={handleImport}
-          disabled={selectedItems.length === 0}
-          className={`px-4 py-2 rounded-lg flex items-center ${
-            selectedItems.length > 0 
-              ? 'bg-blue-500 hover:bg-blue-600 text-white' 
-              : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          導入選中的文件 ({selectedItems.length})
-        </button>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-          <div className="flex items-center">
-            {currentPath.length > 0 && (
-              <button 
-                onClick={navigateBack}
-                className="mr-4 text-blue-500 hover:text-blue-700"
-              >
-                <FaArrowLeft />
-              </button>
-            )}
-            <div className="text-lg font-medium">
-              {currentPath.length === 0 ? '我的 Google Drive' : `我的 Google Drive / ${currentPath.map(id => {
-                const folder = Object.values(driveItems).flat().find(item => item.id === id);
-                return folder ? folder.name : id;
-              }).join(' / ')}`}
-            </div>
-          </div>
-          
-          <div className="relative w-full md:w-64">
-            <input
-              type="text"
-              placeholder="搜索文件..."
-              className="w-full pl-10 pr-4 py-2 border rounded-lg"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          </div>
+      
+      <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <div className="flex items-center text-sm text-gray-500 mb-4">
+          <span className="cursor-pointer hover:text-blue-500" onClick={() => setCurrentFolder('/')}>我的雲端硬碟</span>
+          {currentFolder !== '/' && (
+            <>
+              <span className="mx-2">/</span>
+              <span>{currentFolder.replace('/', '')}</span>
+            </>
+          )}
         </div>
         
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
-                  
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  名稱
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  修改日期
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  大小
-                </th>
+        {view === 'grid' ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {files.map(file => (
+              <div 
+                key={file.id} 
+                className="bg-gray-50 rounded-lg p-4 flex flex-col items-center cursor-pointer hover:bg-gray-100"
+                onClick={() => file.type === 'folder' ? setCurrentFolder(`/${file.name}`) : null}
+              >
+                <div className="text-3xl mb-2">
+                  {getFileIcon(file.type === 'folder' ? 'folder' : file.fileType || '')}
+                </div>
+                <p className="text-sm font-medium text-center truncate w-full">{file.name}</p>
+                <p className="text-xs text-gray-500 mt-1">{formatDate(file.updatedAt)}</p>
+                {file.size !== null && (
+                  <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b">
+                <th className="py-3 px-4 text-left">名稱</th>
+                <th className="py-3 px-4 text-left">上次修改</th>
+                <th className="py-3 px-4 text-left">大小</th>
+                <th className="py-3 px-4 text-left"></th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredItems.map(item => (
-                <tr 
-                  key={item.id} 
-                  className={`hover:bg-gray-50 ${item.type !== 'folder' && selectedItems.includes(item.id) ? 'bg-blue-50' : ''}`}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {item.type !== 'folder' && (
-                      <button 
-                        onClick={() => toggleSelectItem(item.id)}
-                        className={`w-6 h-6 rounded-md flex items-center justify-center ${
-                          selectedItems.includes(item.id) 
-                            ? 'bg-blue-500 text-white' 
-                            : 'border border-gray-300'
-                        }`}
-                      >
-                        {selectedItems.includes(item.id) && <FaCheck className="text-xs" />}
-                      </button>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+            <tbody>
+              {files.map(file => (
+                <tr key={file.id} className="border-b hover:bg-gray-50">
+                  <td className="py-3 px-4">
                     <div className="flex items-center">
-                      {item.thumbnail ? (
-                        <img src={item.thumbnail} alt={item.name} className="w-10 h-6 mr-3 rounded" />
-                      ) : (
-                        <div className="mr-3">
-                          {getItemIcon(item.type)}
-                        </div>
-                      )}
-                      {item.type === 'folder' ? (
-                        <button 
-                          className="font-medium text-blue-600 hover:text-blue-800"
-                          onClick={() => navigateToFolder(item.id, item.name)}
-                        >
-                          {item.name}
-                        </button>
-                      ) : (
-                        <span className="font-medium">{item.name}</span>
-                      )}
+                      <span className="mr-2">
+                        {getFileIcon(file.type === 'folder' ? 'folder' : file.fileType || '')}
+                      </span>
+                      <span 
+                        className="cursor-pointer hover:text-blue-500"
+                        onClick={() => file.type === 'folder' ? setCurrentFolder(`/${file.name}`) : null}
+                      >
+                        {file.name}
+                      </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDate(item.modifiedTime)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {item.size || '-'}
+                  <td className="py-3 px-4 text-sm text-gray-500">{formatDate(file.updatedAt)}</td>
+                  <td className="py-3 px-4 text-sm text-gray-500">{formatFileSize(file.size)}</td>
+                  <td className="py-3 px-4">
+                    <button className="text-gray-500 hover:text-gray-700">
+                      <FaEllipsisV />
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-        
-        {filteredItems.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500">沒有找到符合條件的文件</p>
-          </div>
         )}
       </div>
+      
+      {/* 存儲統計 */}
+      <div className="bg-white rounded-lg shadow p-4">
+        <h2 className="text-lg font-medium mb-4">存儲空間</h2>
+        <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+          <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: '45%' }}></div>
+        </div>
+        <p className="text-sm text-gray-500">已使用 9.2 GB，共 20 GB</p>
+      </div>
+      
+      {/* 創建新文件夾模態框 */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96">
+            <h3 className="text-lg font-medium mb-4">創建新文件夾</h3>
+            <input
+              type="text"
+              placeholder="文件夾名稱"
+              className="w-full border rounded-md px-3 py-2 mb-4"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+            />
+            <div className="flex justify-end space-x-2">
+              <button 
+                className="px-4 py-2 border rounded-md"
+                onClick={() => setShowCreateModal(false)}
+              >
+                取消
+              </button>
+              <button 
+                className="px-4 py-2 bg-blue-500 text-white rounded-md"
+                onClick={createNewFolder}
+              >
+                創建
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

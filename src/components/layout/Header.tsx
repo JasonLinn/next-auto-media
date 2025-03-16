@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { FaBell, FaUserCircle, FaSearch, FaChevronDown, FaYoutube, FaFacebookSquare, FaCalendarAlt } from 'react-icons/fa';
 
 export default function Header() {
