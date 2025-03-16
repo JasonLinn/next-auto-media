@@ -20,11 +20,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
+        }
+      }
     }),
   ],
+  debug: true,
   callbacks: {
     async signIn({ user, account, profile }) {
+      console.log("signIn callback called", { user, account, profile });
+      
       if (!user.email) {
+        console.error("用戶沒有提供電子郵件");
         return false;
       }
 
@@ -101,6 +112,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
         }
 
+        console.log("登入成功");
         return true;
       } catch (error) {
         console.error("登入過程中出錯:", error);
