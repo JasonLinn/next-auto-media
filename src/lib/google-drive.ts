@@ -7,13 +7,13 @@ export interface DriveFile {
   id: string;
   name: string;
   mimeType: string;
-  thumbnailLink?: string;
-  webViewLink?: string;
-  iconLink?: string;
-  size?: string;
-  modifiedTime?: string;
-  createdTime?: string;
-  parents?: string[];
+  thumbnailLink?: string | null;
+  webViewLink?: string | null;
+  iconLink?: string | null;
+  size?: string | null;
+  modifiedTime?: string | null;
+  createdTime?: string | null;
+  parents?: string[] | null;
   isFolder: boolean;
 }
 
@@ -62,7 +62,7 @@ export async function listFiles(
   folderId: string = 'root',
   pageSize: number = 100,
   pageToken?: string
-): Promise<{ files: DriveFile[]; nextPageToken?: string }> {
+): Promise<{ files: DriveFile[]; nextPageToken?: string | null }> {
   try {
     // 查詢參數
     const query = folderId === 'root'
@@ -140,7 +140,7 @@ export async function searchFiles(
   query: string,
   pageSize: number = 30,
   pageToken?: string
-): Promise<{ files: DriveFile[]; nextPageToken?: string }> {
+): Promise<{ files: DriveFile[]; nextPageToken?: string | null }> {
   try {
     // 構建查詢
     const searchQuery = `name contains '${query}' and trashed = false`;
@@ -211,7 +211,8 @@ export async function getDownloadLink(
       }, { responseType: 'stream' });
 
       // 返回導出鏈接
-      return response.config.url || null;
+      const url = response.config.url;
+      return url ? url.toString() : null;
     } else {
       // 普通文件直接獲取下載鏈接
       const response = await drive.files.get({
@@ -220,7 +221,8 @@ export async function getDownloadLink(
       }, { responseType: 'stream' });
 
       // 返回下載鏈接
-      return response.config.url || null;
+      const url = response.config.url;
+      return url ? url.toString() : null;
     }
   } catch (error) {
     console.error('獲取下載鏈接時出錯:', error);
