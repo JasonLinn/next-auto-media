@@ -38,9 +38,16 @@ CREATE POLICY "允許用戶讀取自己的資料" ON public.users
 CREATE POLICY "允許用戶更新自己的資料" ON public.users
   FOR UPDATE USING (auth.uid()::text = id::text OR auth.jwt() ->> 'email' = email);
 
+-- 允許匿名用戶插入資料 (重要: 解決註冊問題)
+CREATE POLICY "允許所有用戶插入資料" ON public.users
+  FOR INSERT WITH CHECK (true);
+
 -- 創建 oauth_accounts 表格的 RLS 策略
 CREATE POLICY "允許用戶讀取自己的 OAuth 帳戶" ON public.oauth_accounts
   FOR SELECT USING (auth.jwt() ->> 'email' = user_email);
+
+CREATE POLICY "允許所有用戶插入 OAuth 帳戶" ON public.oauth_accounts
+  FOR INSERT WITH CHECK (true);
 
 -- 允許 anon 和 authenticated 角色訪問這些表格
 GRANT SELECT, INSERT, UPDATE ON public.users TO anon, authenticated;
