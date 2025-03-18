@@ -38,6 +38,14 @@ export default function FileBrowser() {
         return;
       }
 
+      // 檢查是否有訪問令牌
+      if (!session?.accessToken) {
+        console.error('[FileBrowser] 缺少訪問令牌');
+        setError('缺少訪問令牌，請重新登入');
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
@@ -56,29 +64,32 @@ export default function FileBrowser() {
           if (folderId !== 'root') {
             await loadBreadcrumbs(folderId);
           } else {
-            setBreadcrumbs([]);
+            setBreadcrumbs([{ id: 'root', name: '我的雲端硬碟' }]);
           }
         }
 
+        console.log(`[FileBrowser] 請求文件: ${url}`);
         const response = await fetch(url);
         
         if (!response.ok) {
+          console.error(`[FileBrowser] API 響應錯誤: ${response.status}`);
           const errorData = await response.json();
           throw new Error(errorData.error || '加載文件時出錯');
         }
 
         const data = await response.json();
+        console.log(`[FileBrowser] 收到 ${data.files?.length || 0} 個文件`);
         setFiles(data.files || []);
       } catch (err) {
+        console.error('[FileBrowser] 載入文件時出錯:', err);
         setError(err instanceof Error ? err.message : '未知錯誤');
-        console.error('加載文件時出錯:', err);
       } finally {
         setLoading(false);
       }
     }
 
     loadFiles();
-  }, [folderId, query, status]);
+  }, [folderId, query, status, session?.accessToken]);
 
   // 加載麵包屑
   async function loadBreadcrumbs(fileId: string) {
@@ -147,6 +158,35 @@ export default function FileBrowser() {
     window.open(`/api/drive/download?fileId=${encodeURIComponent(file.id)}`, '_blank');
   }
 
+  // 處理錯誤顯示
+  function ErrorDisplay() {
+    if (!error) return null;
+    
+    return (
+      <div className="flex flex-col items-center justify-center py-12 bg-red-50 rounded-lg border border-red-200">
+        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+        <h2 className="text-xl font-semibold mb-2">出錯了</h2>
+        <p className="text-gray-600 mb-4 text-center">{error}</p>
+        <button
+          onClick={handleRetry}
+          className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 flex items-center"
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          重試
+        </button>
+        
+        {error.includes('未認證') || error.includes('登入') ? (
+          <Link
+            href="/auth/signin?callbackUrl=/drive"
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+          >
+            重新登入
+          </Link>
+        ) : null}
+      </div>
+    );
+  }
+
   // 重新加載
   function handleRetry() {
     setLoading(true);
@@ -154,23 +194,49 @@ export default function FileBrowser() {
     router.refresh();
   }
 
-  // 如果用戶未登入，顯示登入提示
-  if (status === 'unauthenticated') {
+  // 如果正在加載，顯示加載中
+  if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-        <h2 className="text-xl font-semibold mb-2">需要登入</h2>
-        <p className="text-gray-600 mb-4">請先登入以訪問您的 Google Drive 文件</p>
-        <Link
-          href="/auth/signin?callbackUrl=/drive"
-          className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-        >
-          登入
-        </Link>
+        <Loader2 className="h-12 w-12 text-blue-500 mb-4 animate-spin" />
+        <h2 className="text-xl font-semibold">載入中...</h2>
+        <p className="text-gray-500 mt-2">正在獲取您的檔案列表</p>
       </div>
     );
   }
 
+  // 如果有錯誤，顯示錯誤信息
+  if (error) {
+    return <ErrorDisplay />;
+  }
+
+  // 如果文件列表為空
+  if (files.length === 0) {
+    return (
+      <div className="py-8 text-center">
+        <div className="max-w-md mx-auto">
+          <p className="text-lg mb-4">
+            {isSearching 
+              ? `沒有找到與 "${query}" 匹配的文件` 
+              : folderId === 'root' 
+                ? '您的雲端硬碟中沒有文件' 
+                : '此文件夾中沒有文件'}
+          </p>
+          
+          {isSearching && (
+            <button
+              onClick={clearSearch}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+            >
+              清除搜索
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // 主要視圖
   return (
     <div className="container mx-auto p-4">
       {/* 搜索欄 */}
@@ -205,7 +271,7 @@ export default function FileBrowser() {
       </div>
 
       {/* 麵包屑導航 */}
-      {!isSearching && (
+      {!isSearching && breadcrumbs.length > 0 && (
         <div className="flex items-center mb-4 text-sm overflow-x-auto whitespace-nowrap pb-2">
           {breadcrumbs.map((crumb, index) => (
             <div key={crumb.id} className="flex items-center">
@@ -241,113 +307,76 @@ export default function FileBrowser() {
         </h2>
       )}
 
-      {/* 錯誤訊息 */}
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 flex items-center justify-between">
-          <div className="flex items-center">
-            <AlertCircle className="h-5 w-5 mr-2" />
-            <span>{error}</span>
-          </div>
-          <button 
-            onClick={handleRetry}
-            className="flex items-center text-blue-500 hover:text-blue-700"
-          >
-            <RefreshCw className="h-4 w-4 mr-1" />
-            重試
-          </button>
-        </div>
-      )}
-
-      {/* 加載中 */}
-      {loading && (
-        <div className="flex justify-center items-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-          <span className="ml-2 text-lg">加載中...</span>
-        </div>
-      )}
-
       {/* 文件列表 */}
-      {!loading && !error && files.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
-          {isSearching ? '沒有找到符合條件的文件' : '此文件夾為空'}
-        </div>
-      )}
-
-      {!loading && !error && files.length > 0 && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  名稱
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  修改日期
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  大小
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  操作
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {files.map((file) => (
-                <tr
-                  key={file.id}
-                  onClick={() => handleFileClick(file)}
-                  className="hover:bg-gray-50 cursor-pointer"
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {files.map((file) => (
+          <div
+            key={file.id}
+            onClick={() => handleFileClick(file)}
+            className="border rounded-md p-4 cursor-pointer hover:bg-gray-50 transition-colors flex flex-col"
+          >
+            <div className="flex items-center mb-2">
+              {file.isFolder ? (
+                <Folder className="h-6 w-6 text-yellow-500 mr-2" />
+              ) : (
+                <File className="h-6 w-6 text-blue-500 mr-2" />
+              )}
+              <span className="font-medium truncate" title={file.name}>
+                {file.name}
+              </span>
+            </div>
+            
+            {file.thumbnailLink && (
+              <div className="mb-2 w-full">
+                <img
+                  src={file.thumbnailLink}
+                  alt={file.name}
+                  className="w-full h-32 object-contain rounded"
+                />
+              </div>
+            )}
+            
+            <div className="mt-auto pt-2 text-sm text-gray-500">
+              {file.size && (
+                <div className="flex justify-between">
+                  <span>大小:</span>
+                  <span>{formatFileSize(Number(file.size))}</span>
+                </div>
+              )}
+              {file.modifiedTime && (
+                <div className="flex justify-between">
+                  <span>修改時間:</span>
+                  <span>{formatDate(file.modifiedTime)}</span>
+                </div>
+              )}
+            </div>
+            
+            {!file.isFolder && (
+              <div className="flex mt-2 pt-2 border-t">
+                <button
+                  onClick={(e) => downloadFile(e, file)}
+                  className="flex items-center text-sm text-blue-500 hover:text-blue-700 mr-4"
                 >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      {file.isFolder ? (
-                        <Folder className="h-5 w-5 text-yellow-500 mr-3" />
-                      ) : (
-                        <File className="h-5 w-5 text-blue-500 mr-3" />
-                      )}
-                      <div className="text-sm font-medium text-gray-900">
-                        {file.name}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {file.modifiedTime ? formatDate(file.modifiedTime) : '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {file.size ? formatFileSize(file.size) : '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div className="flex space-x-2">
-                      {!file.isFolder && (
-                        <>
-                          <button
-                            onClick={(e) => downloadFile(e, file)}
-                            className="text-blue-500 hover:text-blue-700"
-                            title="下載"
-                          >
-                            <Download className="h-5 w-5" />
-                          </button>
-                          <a
-                            href={file.webViewLink || '#'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-blue-500 hover:text-blue-700"
-                            title="在 Google Drive 中打開"
-                          >
-                            <ExternalLink className="h-5 w-5" />
-                          </a>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                  <Download className="h-4 w-4 mr-1" />
+                  下載
+                </button>
+                {file.webViewLink && (
+                  <a
+                    href={file.webViewLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center text-sm text-blue-500 hover:text-blue-700"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    預覽
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 } 
