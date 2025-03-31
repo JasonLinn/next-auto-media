@@ -4,8 +4,15 @@ import GoogleProvider from "next-auth/providers/google";
 import { supabase } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 
-// Google Drive 範圍
-const DriveScope = 'https://www.googleapis.com/auth/drive.readonly';
+// Google API 範圍
+const YOUTUBE_SCOPES = [
+  'https://www.googleapis.com/auth/youtube.readonly',
+  'https://www.googleapis.com/auth/youtube.upload',
+  'https://www.googleapis.com/auth/youtube.force-ssl'
+];
+const DRIVE_SCOPES = [
+  'https://www.googleapis.com/auth/drive.readonly'
+];
 
 // 擴展會話類型，添加訪問令牌
 declare module "next-auth" {
@@ -60,6 +67,9 @@ const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith("https://");
 const cookiePrefix = useSecureCookies ? "__Secure-" : "";
 const hostName = new URL(process.env.NEXTAUTH_URL ?? "http://localhost:3000").hostname;
 
+// 合併所有需要的 Google API 範圍
+const allScopes = ['openid', 'email', 'profile', ...YOUTUBE_SCOPES, ...DRIVE_SCOPES];
+
 // 配置 NextAuth
 export const authOptions: NextAuthConfig = {
   providers: [
@@ -68,7 +78,7 @@ export const authOptions: NextAuthConfig = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
-          scope: 'openid email profile https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/drive.readonly',
+          scope: allScopes.join(' '),
           prompt: "consent",
           access_type: "offline",
         }
