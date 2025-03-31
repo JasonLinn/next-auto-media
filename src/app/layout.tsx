@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import AuthProvider from "@/components/auth/AuthProvider";
+import { NextAuthProvider } from "@/components/providers/NextAuthProvider";
 
 export const metadata: Metadata = {
   title: "Next Auto Media",
-  description: "自動化媒體處理平台",
+  description: "Automate your social media posting",
 };
 
 export default function RootLayout({
@@ -15,7 +15,9 @@ export default function RootLayout({
   return (
     <html lang="zh-TW">
       <body className="font-sans">
-        <AuthProvider>{children}</AuthProvider>
+        <NextAuthProvider>
+          {children}
+        </NextAuthProvider>
       </body>
     </html>
   );

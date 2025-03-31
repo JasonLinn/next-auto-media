@@ -1,50 +1,39 @@
 "use client";
 
-import { redirect } from "next/navigation";
-import { getProviders, useSession } from "next-auth/react";
-import SignInForm from "@/components/auth/SignInForm";
-import { useEffect, useState } from "react";
+import { signIn } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 
-export default function SignInPage() {
-  const { data: session, status } = useSession();
-  const [providers, setProviders] = useState<any>(null);
+export default function SignIn() {
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams?.get("callbackUrl") ?? "/dashboard";
 
-  useEffect(() => {
-    const fetchProviders = async () => {
-      const providers = await getProviders();
-      setProviders(providers);
-    };
-    fetchProviders();
-  }, []);
-
-  // 如果用戶已登入，重定向到首頁
-  useEffect(() => {
-    if (session) {
-      redirect("/");
+  const handleGoogleSignIn = async () => {
+    try {
+      await signIn("google", { 
+        callbackUrl,
+        redirect: true,
+      });
+    } catch (error) {
+      console.error("登入失敗：", error);
     }
-  }, [session]);
-
-  if (status === "loading") {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="mt-4 text-gray-600">載入中...</p>
-      </div>
-    );
-  }
+  };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
-            登入您的帳戶
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            登入您的帳號
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            使用您的 Google 帳戶登入
-          </p>
         </div>
-        <SignInForm providers={providers} />
+        <div className="mt-8 space-y-6">
+          <button
+            onClick={handleGoogleSignIn}
+            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            使用 Google 帳號登入
+          </button>
+        </div>
       </div>
     </div>
   );
