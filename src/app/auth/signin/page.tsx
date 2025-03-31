@@ -10,6 +10,7 @@ function SignInContent() {
 
   const handleGoogleSignIn = async () => {
     try {
+      console.log(`正在嘗試登入，回調 URL: ${callbackUrl}`);
       await signIn("google", { 
         callbackUrl,
         redirect: true,
@@ -25,6 +26,9 @@ function SignInContent() {
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
           登入您的帳號
         </h2>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          登入後將跳轉至: {callbackUrl}
+        </p>
       </div>
       <div className="mt-8 space-y-6">
         <button

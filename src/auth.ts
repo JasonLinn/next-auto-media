@@ -60,9 +60,11 @@ export const authOptions: NextAuthConfig = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
-          scope: 'openid email profile https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.upload',
+          scope: 'openid email profile https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/drive.readonly',
           prompt: "consent",
           access_type: "offline",
+          response_type: "code",
+          redirect_uri: process.env.NEXTAUTH_URL ? `${process.env.NEXTAUTH_URL}/api/auth/callback/google` : undefined,
         }
       }
     })
@@ -105,6 +107,11 @@ export const authOptions: NextAuthConfig = {
   callbacks: {
     async jwt({ token, account }) {
       if (account) {
+        console.log('[NextAuth][Debug][JWT-Account]', { 
+          accessToken: !!account.access_token, 
+          refreshToken: !!account.refresh_token,
+          expiresAt: account.expires_at
+        });
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
         token.expiresAt = account.expires_at;
@@ -115,6 +122,12 @@ export const authOptions: NextAuthConfig = {
       if (token) {
         session.accessToken = token.accessToken as string;
         session.refreshToken = token.refreshToken as string;
+        
+        // 添加調試日誌
+        console.log('[NextAuth][Debug][Session-Token]', { 
+          hasAccessToken: !!session.accessToken,
+          hasRefreshToken: !!session.refreshToken
+        });
       }
 
       if (session?.user?.email) {
@@ -136,10 +149,28 @@ export const authOptions: NextAuthConfig = {
 
       return session;
     },
+    async redirect({ url, baseUrl }) {
+      // 確保我們總是使用完整的 URL 進行重定向
+      console.log('[NextAuth][Debug][Redirect]', { url, baseUrl });
+      
+      // 如果 URL 是相對路徑，轉換為絕對路徑
+      if (url.startsWith('/')) {
+        return `${baseUrl}${url}`;
+      }
+      // 如果它已經是絕對路徑並且域名匹配，則允許
+      else if (url.startsWith(baseUrl)) {
+        return url;
+      }
+      // 默認返回首頁
+      return baseUrl;
+    },
     async signIn({ user, account }) {
       if (!user.email) return false;
 
       try {
+        // 添加調試日誌
+        console.log('[NextAuth][Debug][SignIn]', { email: user.email, provider: account?.provider });
+        
         const { data: existingUser } = await supabase
           .from('users')
           .select('*')
