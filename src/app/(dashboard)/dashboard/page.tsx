@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { FaYoutube, FaFacebook, FaInstagram, FaTiktok, FaTwitter } from 'react-icons/fa';
 import Link from 'next/link';
+import { YouTubeLogin } from '@/components/social/YouTubeLogin';
 
 export default function Dashboard() {
   // 使用 useState 但不使用 setter 函數，可以使用 _ 來忽略
@@ -52,6 +53,22 @@ export default function Dashboard() {
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">儀表板</h1>
+      
+      {/* 社群媒體連結 */}
+      <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <h2 className="text-xl font-bold mb-4">社群媒體連結</h2>
+        <div className="space-y-4">
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <FaYoutube className="text-red-600 mr-2" /> YouTube
+            </h3>
+            <YouTubeLogin 
+              onSuccess={() => console.log('YouTube 連結成功')}
+              onError={(error) => console.error('YouTube 連結失敗：', error)}
+            />
+          </div>
+        </div>
+      </div>
       
       {/* 快速統計 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
