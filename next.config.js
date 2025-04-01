@@ -10,6 +10,9 @@ const nextConfig = {
   webpack: (config) => {
     return config;
   },
+  images: {
+    domains: ['via.placeholder.com', 'lh3.googleusercontent.com', 'placeholder.com'],
+  },
 };
 
 module.exports = nextConfig; 

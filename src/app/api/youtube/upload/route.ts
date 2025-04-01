@@ -28,6 +28,8 @@ export async function POST(req: NextRequest) {
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
     const tags = formData.get('tags') as string;
+    const privacyStatus = formData.get('privacyStatus') as string || 'public'; // 默認為公開視頻
+    const isShorts = formData.get('isShorts') === 'true'; // 檢查是否為 Shorts
     
     if (!videoFile || !title) {
       return NextResponse.json(
@@ -37,7 +39,12 @@ export async function POST(req: NextRequest) {
     }
 
     // 處理標籤
-    const tagArray = tags ? tags.split(',').map(tag => tag.trim()) : [];
+    let tagArray = tags ? tags.split(',').map(tag => tag.trim()) : [];
+    
+    // 如果是 Shorts，添加 Shorts 相關標籤
+    if (isShorts && !tagArray.includes('#Shorts')) {
+      tagArray = ['#Shorts', ...tagArray];
+    }
 
     // 把文件保存到臨時目錄
     const videoTempPath = path.join(os.tmpdir(), `youtube-upload-${Date.now()}.mp4`);
@@ -70,22 +77,29 @@ export async function POST(req: NextRequest) {
       auth: oauth2Client,
     });
 
-    console.log('開始上傳影片到 YouTube...');
+    // 準備視頻描述，如果是 Shorts 則添加標記
+    let finalDescription = description;
+    if (isShorts && !finalDescription.includes('#Shorts')) {
+      finalDescription = finalDescription ? `${finalDescription}\n\n#Shorts` : '#Shorts';
+    }
+
+    console.log(`開始上傳影片到 YouTube...（隱私狀態: ${privacyStatus}, Shorts: ${isShorts}）`);
 
     // 上傳視頻
     const videoRes = await youtube.videos.insert({
       part: ['snippet', 'status'],
       requestBody: {
         snippet: {
-          title,
-          description,
+          title: isShorts ? `${title} #Shorts` : title,
+          description: finalDescription,
           tags: tagArray,
           categoryId: String(CATEGORY_IDS.Education), // 預設為教育類別
           defaultLanguage: 'zh-TW',
           defaultAudioLanguage: 'zh-TW',
         },
         status: {
-          privacyStatus: 'private', // 預設為私人視頻
+          privacyStatus: privacyStatus, // 使用傳入的隱私狀態或默認為公開
+          selfDeclaredMadeForKids: false, // 默認非兒童內容
         },
       },
       media: {
@@ -119,10 +133,12 @@ export async function POST(req: NextRequest) {
     const videoUrl = videoRes.data.id ? `https://www.youtube.com/watch?v=${videoRes.data.id}` : undefined;
     
     return NextResponse.json({
-      message: '視頻上傳成功',
+      message: isShorts ? 'Shorts 上傳成功' : '視頻上傳成功',
       videoId: videoRes.data.id,
       url: videoUrl,
       thumbnailUrl: videoRes.data.snippet?.thumbnails?.default?.url,
+      privacyStatus: privacyStatus,
+      isShorts: isShorts
     });
   } catch (error: any) {
     console.error('上傳視頻時出錯:', error);

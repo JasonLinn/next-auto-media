@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { FaYoutube, FaFacebook, FaInstagram, FaTiktok, FaTwitter } from 'react-icons/fa';
 import Link from 'next/link';
 import { YouTubeLogin } from '@/components/social/YouTubeLogin';
+import YouTubeDirectUpload from '@/components/social/YouTubeDirectUpload';
 
 export default function Dashboard() {
   // 使用 useState 但不使用 setter 函數，可以使用 _ 來忽略
@@ -53,6 +54,11 @@ export default function Dashboard() {
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">儀表板</h1>
+      
+      {/* YouTube快速上傳區塊 */}
+      <div className="mb-8">
+        <YouTubeDirectUpload />
+      </div>
       
       {/* 社群媒體連結 */}
       <div className="bg-white rounded-lg shadow p-6 mb-8">
