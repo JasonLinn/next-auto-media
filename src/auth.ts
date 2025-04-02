@@ -1,6 +1,8 @@
 import NextAuth from "next-auth";
 import type { NextAuthConfig } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import FacebookProvider from "next-auth/providers/facebook";
+import InstagramProvider from "next-auth/providers/instagram";
 import { supabase } from '@/lib/supabase';
 import { createClient } from '@supabase/supabase-js';
 
@@ -12,6 +14,23 @@ const YOUTUBE_SCOPES = [
 ];
 const DRIVE_SCOPES = [
   'https://www.googleapis.com/auth/drive.readonly'
+];
+
+// Facebook API 範圍
+const FACEBOOK_SCOPES = [
+  'email',
+  'public_profile',
+  'pages_show_list',
+  'pages_read_engagement',
+  'pages_manage_posts',
+  'instagram_basic',
+  'instagram_content_publish'
+];
+
+// Instagram API 範圍
+const INSTAGRAM_SCOPES = [
+  'instagram_basic',
+  'instagram_content_publish'
 ];
 
 // 擴展會話類型，添加訪問令牌
@@ -81,6 +100,24 @@ export const authOptions: NextAuthConfig = {
           scope: allScopes.join(' '),
           prompt: "consent",
           access_type: "offline",
+        }
+      }
+    }),
+    FacebookProvider({
+      clientId: process.env.FACEBOOK_APP_ID!,
+      clientSecret: process.env.FACEBOOK_APP_SECRET!,
+      authorization: {
+        params: {
+          scope: FACEBOOK_SCOPES.join(',')
+        }
+      }
+    }),
+    InstagramProvider({
+      clientId: process.env.INSTAGRAM_CLIENT_ID!,
+      clientSecret: process.env.INSTAGRAM_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          scope: INSTAGRAM_SCOPES.join(' ')
         }
       }
     })

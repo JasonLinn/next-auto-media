@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { FaUpload, FaYoutube } from 'react-icons/fa';
+import { FaUpload, FaYoutube, FaFacebookSquare, FaInstagram } from 'react-icons/fa';
 import { MdDashboard, MdPhoto, MdVideoLibrary } from 'react-icons/md';
 import { FaFolder } from 'react-icons/fa';
 import YoutubeDirectUpload from '@/components/social/YouTubeDirectUpload';
@@ -99,7 +99,36 @@ export default function Home() {
           </section>
         </div>
         
-        <h2 className="text-2xl font-bold mb-6 text-center">社群平台上傳</h2>
+        <h2 className="text-2xl font-bold mb-6 text-center">社交媒體發文</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+          <Link href="/social" className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-2 border-blue-100">
+            <div className="flex items-center space-x-4 mb-4">
+              <FaFacebookSquare className="text-5xl text-blue-600" />
+              <div>
+                <h3 className="text-xl font-bold text-gray-800">Facebook 發文工具</h3>
+                <p className="text-gray-600">直接發布文字、圖片到您的 Facebook 頁面</p>
+              </div>
+            </div>
+            <div className="mt-4 text-center">
+              <span className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg font-medium">立即發文</span>
+            </div>
+          </Link>
+          
+          <Link href="/social" className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-all duration-300 border-2 border-pink-100">
+            <div className="flex items-center space-x-4 mb-4">
+              <FaInstagram className="text-5xl text-pink-600" />
+              <div>
+                <h3 className="text-xl font-bold text-gray-800">Instagram 發文工具</h3>
+                <p className="text-gray-600">輕鬆上傳照片、影片到您的 Instagram 帳號</p>
+              </div>
+            </div>
+            <div className="mt-4 text-center">
+              <span className="inline-block px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg font-medium">立即發文</span>
+            </div>
+          </Link>
+        </div>
+        
+        <h2 className="text-2xl font-bold mb-6 text-center">影片平台上傳</h2>
         <div className="grid grid-cols-1 gap-8 mb-8">
           <YoutubeDirectUpload />
           <TikTokDirectUpload />

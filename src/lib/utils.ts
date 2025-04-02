@@ -1,3 +1,7 @@
+// 導入 clsx 和 tailwind-merge
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
 /**
  * 格式化文件大小
  * @param bytes 文件大小（位元組）
@@ -16,6 +20,16 @@ export function formatFileSize(bytes: number): string {
   }
   
   return `${size.toFixed(2)} ${units[unitIndex]}`;
+}
+
+/**
+ * 組合 CSS 類名
+ * 基於 clsx 和 tailwind-merge 工具
+ * @param inputs 要組合的類名
+ * @returns 組合後的類名
+ */
+export function cn(...inputs: ClassValue[]): string {
+  return twMerge(clsx(inputs));
 }
 
 /**

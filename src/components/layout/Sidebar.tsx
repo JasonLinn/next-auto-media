@@ -12,7 +12,8 @@ import {
   FaCog,
   FaSignOutAlt,
   FaBars,
-  FaTimes
+  FaTimes,
+  FaShareAlt
 } from 'react-icons/fa';
 
 export default function Sidebar() {
@@ -25,6 +26,7 @@ export default function Sidebar() {
     { name: '日曆', path: '/calendar', icon: <FaCalendarAlt /> },
     { name: '媒體庫', path: '/media', icon: <FaPhotoVideo /> },
     { name: 'Google Drive', path: '/drive', icon: <FaGoogle /> },
+    { name: '社交媒體', path: '/social', icon: <FaShareAlt /> },
     { name: '新建發布', path: '/create', icon: <FaPlus /> },
     { name: '設置', path: '/settings', icon: <FaCog /> },
   ];
