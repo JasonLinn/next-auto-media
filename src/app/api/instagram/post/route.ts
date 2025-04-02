@@ -6,105 +6,137 @@ import axios from 'axios';
 // Instagram Graph API版本
 const IG_API_VERSION = 'v18.0';
 
-export async function POST(request: NextRequest) {
+// 解析表單數據的函數
+async function parseFormData(request: NextRequest) {
   try {
-    // 獲取用戶會話
-    const session = await auth();
-    
-    if (!session || !session.user) {
-      return NextResponse.json({ message: '未授權' }, { status: 401 });
-    }
-    
-    // 檢查是否有Instagram訪問令牌
-    const accessToken = session.accessToken;
-    
-    if (!accessToken) {
-      return NextResponse.json({ message: '缺少Instagram訪問令牌' }, { status: 403 });
-    }
-    
-    // 獲取表單數據
     const formData = await request.formData();
-    const caption = formData.get('caption') as string;
-    const hashtags = formData.get('hashtags') as string;
-    const imageCountStr = formData.get('imageCount') as string;
-    const imageCount = parseInt(imageCountStr || '0', 10);
     
-    // 驗證輸入
-    if (imageCount <= 0) {
-      return NextResponse.json({ message: 'Instagram需要至少一張圖片' }, { status: 400 });
-    }
-    
-    // 收集所有圖片
+    // 處理圖片文件
+    const imageCount = parseInt(formData.get('imageCount') as string) || 0;
     const images: File[] = [];
+    
     for (let i = 0; i < imageCount; i++) {
-      const image = formData.get(`image${i}`) as File;
+      const imageKey = `image${i}`;
+      const image = formData.get(imageKey) as File;
       if (image) {
         images.push(image);
       }
     }
     
-    if (images.length === 0) {
-      return NextResponse.json({ message: '未找到有效的圖片' }, { status: 400 });
+    // 獲取其他參數
+    const caption = formData.get('caption') as string || '';
+    const hashtags = formData.get('hashtags') as string || '';
+    const instagramAccountId = formData.get('instagramAccountId') as string;
+    const pageId = formData.get('pageId') as string;
+    const pageAccessToken = formData.get('pageAccessToken') as string;
+    
+    return {
+      images,
+      caption,
+      hashtags,
+      instagramAccountId,
+      pageId,
+      pageAccessToken
+    };
+  } catch (error) {
+    console.error('解析表單數據時出錯:', error);
+    throw new Error('解析表單數據失敗');
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    // 獲取認證會話
+    const session = await auth();
+    
+    if (!session?.accessToken) {
+      console.error('未授權');
+      return NextResponse.json({ message: '未授權: 請先登入' }, { status: 401 });
     }
     
-    // 處理標籤
-    let processedCaption = caption || '';
-    if (hashtags) {
-      const hashtagsArray = hashtags.split(/\s+/).filter(tag => tag.trim());
-      if (hashtagsArray.length > 0) {
-        const hashtagsText = hashtagsArray.map(tag => `#${tag}`).join(' ');
-        processedCaption = `${processedCaption}\n\n${hashtagsText}`;
-      }
+    // 解析表單數據
+    const { images, caption, hashtags, instagramAccountId, pageId, pageAccessToken } = await parseFormData(request);
+    
+    if (images.length === 0) {
+      return NextResponse.json({ message: '請至少上傳一張圖片' }, { status: 400 });
+    }
+    
+    // 處理標籤和描述
+    const processedHashtags = hashtags
+      .split(/[\s\n]+/)
+      .filter(tag => tag.trim() !== '')
+      .map(tag => tag.startsWith('#') ? tag : `#${tag}`)
+      .join(' ');
+    
+    const processedCaption = caption + (processedHashtags ? '\n\n' + processedHashtags : '');
+    
+    // 決定使用哪個訪問令牌和頁面 ID
+    let accessToken = session.accessToken;
+    let selectedPageId = '';
+    let specificInstagramId = '';
+    
+    // 優先使用前端提供的特定 Instagram 帳號和頁面信息
+    if (pageAccessToken && pageId && instagramAccountId) {
+      accessToken = pageAccessToken;
+      selectedPageId = pageId;
+      specificInstagramId = instagramAccountId;
+      console.log('使用前端提供的特定 Instagram 帳號:', specificInstagramId);
     }
     
     console.log('Instagram發文請求:', {
       caption: processedCaption,
       imageCount: images.length,
-      hasAccessToken: !!accessToken
+      hasAccessToken: !!accessToken,
+      hasSpecificAccount: !!specificInstagramId
     });
     
     try {
-      // 1. 首先需要獲取用戶的Facebook頁面
-      console.log('獲取用戶的Facebook頁面...');
-      const accountsResponse = await axios.get(
-        `https://graph.facebook.com/${IG_API_VERSION}/me/accounts`,
-        { params: { access_token: accessToken } }
-      );
-      
-      console.log('獲取頁面結果:', accountsResponse.data);
-      
-      if (!accountsResponse.data.data || accountsResponse.data.data.length === 0) {
-        return NextResponse.json({ message: '未找到您可管理的Facebook頁面' }, { status: 400 });
-      }
-      
-      // 使用第一個頁面（可以改為讓用戶選擇）
-      const page = accountsResponse.data.data[0];
-      const pageId = page.id;
-      const pageAccessToken = page.access_token;
-      
-      console.log('使用頁面:', { pageId, hasPageToken: !!pageAccessToken });
-      
-      // 2. 獲取與該頁面關聯的Instagram商業帳戶
-      console.log('獲取Instagram商業帳戶...');
-      const igAccountResponse = await axios.get(
-        `https://graph.facebook.com/${IG_API_VERSION}/${pageId}`,
-        { 
-          params: { 
-            fields: 'instagram_business_account',
-            access_token: pageAccessToken 
-          } 
+      // 如果未指定特定頁面，則獲取用戶的Facebook頁面
+      if (!selectedPageId || !specificInstagramId) {
+        console.log('獲取用戶的Facebook頁面...');
+        const accountsResponse = await axios.get(
+          `https://graph.facebook.com/${IG_API_VERSION}/me/accounts`,
+          { params: { access_token: accessToken } }
+        );
+        
+        console.log('獲取頁面結果:', accountsResponse.data);
+        
+        if (!accountsResponse.data.data || accountsResponse.data.data.length === 0) {
+          return NextResponse.json({ message: '未找到您可管理的Facebook頁面' }, { status: 400 });
         }
-      );
-      
-      console.log('Instagram帳戶結果:', igAccountResponse.data);
-      
-      if (!igAccountResponse.data.instagram_business_account) {
-        return NextResponse.json({ 
-          message: '未找到與您的Facebook頁面關聯的Instagram商業帳戶，請在Facebook頁面設置中關聯您的Instagram帳戶' 
-        }, { status: 400 });
+        
+        // 使用第一個頁面
+        const page = accountsResponse.data.data[0];
+        selectedPageId = page.id;
+        accessToken = page.access_token;
       }
       
-      const igAccountId = igAccountResponse.data.instagram_business_account.id;
+      // 如果未指定特定的Instagram帳號，需要獲取關聯的Instagram商業帳戶
+      let igAccountId = specificInstagramId;
+      
+      if (!igAccountId) {
+        console.log('獲取Instagram商業帳戶...');
+        const igAccountResponse = await axios.get(
+          `https://graph.facebook.com/${IG_API_VERSION}/${selectedPageId}`,
+          { 
+            params: { 
+              fields: 'instagram_business_account',
+              access_token: accessToken 
+            } 
+          }
+        );
+        
+        console.log('Instagram帳戶結果:', igAccountResponse.data);
+        
+        if (!igAccountResponse.data.instagram_business_account) {
+          return NextResponse.json({ 
+            message: '未找到與您的Facebook頁面關聯的Instagram商業帳戶，請在Facebook頁面設置中關聯您的Instagram帳戶' 
+          }, { status: 400 });
+        }
+        
+        igAccountId = igAccountResponse.data.instagram_business_account.id;
+      }
+      
       console.log('使用Instagram帳戶:', { igAccountId });
       
       let mediaId;
@@ -128,7 +160,7 @@ export async function POST(request: NextRequest) {
             params: {
               image_url: `data:${image.type};base64,${base64Image}`,
               caption: processedCaption,
-              access_token: pageAccessToken
+              access_token: accessToken
             }
           }
         );
@@ -155,7 +187,7 @@ export async function POST(request: NextRequest) {
               params: {
                 image_url: `data:${image.type};base64,${base64Image}`,
                 is_carousel_item: 'true',
-                access_token: pageAccessToken
+                access_token: accessToken
               }
             }
           );
@@ -174,7 +206,7 @@ export async function POST(request: NextRequest) {
               media_type: 'CAROUSEL',
               caption: processedCaption,
               children: childrenMediaIds.join(','),
-              access_token: pageAccessToken
+              access_token: accessToken
             }
           }
         );
@@ -191,7 +223,7 @@ export async function POST(request: NextRequest) {
         {
           params: {
             creation_id: mediaId,
-            access_token: pageAccessToken
+            access_token: accessToken
           }
         }
       );
@@ -207,7 +239,7 @@ export async function POST(request: NextRequest) {
         {
           params: {
             fields: 'id,permalink',
-            access_token: pageAccessToken
+            access_token: accessToken
           }
         }
       );
@@ -242,10 +274,10 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
   } catch (error: any) {
-    console.error('處理Instagram發布請求錯誤:', error);
+    console.error('處理Instagram發文請求出錯:', error);
     return NextResponse.json({ 
-      message: '處理請求時發生錯誤',
-      error: error.message 
+      message: '處理請求時出錯',
+      error: error.message
     }, { status: 500 });
   }
 } 

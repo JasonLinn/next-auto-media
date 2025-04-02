@@ -6,6 +6,14 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import os from 'os';
 
+// Facebook 頁面接口定義
+interface FacebookPage {
+  id: string;
+  name: string;
+  access_token: string;
+  category?: string;
+}
+
 export const dynamic = 'force-dynamic';
 
 // 處理 FormData 的輔助函數
@@ -13,12 +21,13 @@ async function parseFormData(req: NextRequest) {
   const formData = await req.formData();
   const file = formData.get('file') as File | null;
   const message = formData.get('message') as string;
+  const pageId = formData.get('pageId') as string;
   
-  return { file, message };
+  return { file, message, pageId };
 }
 
 // 從 FB Graph API 獲取用戶頁面的輔助函數
-async function getUserPages(accessToken: string) {
+async function getUserPages(accessToken: string): Promise<FacebookPage[]> {
   try {
     console.log('正在獲取用戶頁面...');
     const response = await fetch(`https://graph.facebook.com/v19.0/me/accounts?access_token=${accessToken}`);
@@ -117,7 +126,7 @@ export async function POST(req: NextRequest) {
     console.log('已獲取會話, 訪問令牌是否存在:', !!session.accessToken);
     
     // 解析表單數據
-    const { file, message } = await parseFormData(req);
+    const { file, message, pageId } = await parseFormData(req);
     
     if (!message && !file) {
       console.error('請求錯誤: 缺少訊息或檔案');
@@ -148,12 +157,26 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // 使用第一個頁面
-    const page = pages[0];
-    const pageId = page.id;
+    // 使用指定的頁面，或默認使用第一個頁面
+    let selectedPage: FacebookPage | undefined;
+    if (pageId) {
+      selectedPage = pages.find((p: FacebookPage) => p.id === pageId);
+      if (!selectedPage) {
+        console.error('找不到指定的頁面:', pageId);
+        return NextResponse.json(
+          { error: '找不到指定的Facebook頁面，可能權限已變更' },
+          { status: 400 }
+        );
+      }
+    } else {
+      // 如果沒有指定頁面，使用第一個頁面
+      selectedPage = pages[0];
+    }
+    
+    const page = selectedPage;
     const pageAccessToken = page.access_token;
     
-    console.log(`將使用頁面: ${page.name} (ID: ${pageId})`);
+    console.log(`將使用頁面: ${page.name} (ID: ${page.id})`);
     
     let result;
     
@@ -173,7 +196,7 @@ export async function POST(req: NextRequest) {
       
       try {
         // 上傳圖片到 Facebook
-        result = await uploadPhotoToFacebook(pageId, pageAccessToken, filePath, message || '');
+        result = await uploadPhotoToFacebook(page.id, pageAccessToken, filePath, message || '');
         // 清理臨時文件
         fs.unlinkSync(filePath);
       } catch (error: any) {
@@ -190,7 +213,7 @@ export async function POST(req: NextRequest) {
     } else {
       // 只發布文字內容
       try {
-        result = await postToFacebookPage(pageId, pageAccessToken, message);
+        result = await postToFacebookPage(page.id, pageAccessToken, message);
       } catch (error: any) {
         console.error('發布文字失敗:', error);
         return NextResponse.json(
@@ -201,7 +224,14 @@ export async function POST(req: NextRequest) {
     }
     
     console.log('Facebook發布完成, 結果:', result);
-    return NextResponse.json({ success: true, result });
+    return NextResponse.json({ 
+      success: true, 
+      result,
+      page: {
+        id: page.id,
+        name: page.name
+      }
+    });
   } catch (error: any) {
     console.error('處理請求時出現意外錯誤:', error);
     return NextResponse.json(

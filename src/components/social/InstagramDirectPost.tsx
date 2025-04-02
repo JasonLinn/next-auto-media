@@ -2,8 +2,23 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { FaInstagram, FaTimes, FaSignInAlt, FaInfoCircle, FaImage, FaPlus } from 'react-icons/fa';
+import { FaInstagram, FaTimes, FaSignInAlt, FaInfoCircle, FaImage, FaPlus, FaCheckCircle } from 'react-icons/fa';
 import { signIn } from 'next-auth/react';
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { ImagePlus, Send } from "lucide-react";
+import { toast } from "sonner";
+
+// Instagram 商業帳號接口
+interface InstagramAccount {
+  id: string;
+  name: string;
+  username: string;
+  profile_picture_url?: string;
+  page_id: string;
+  page_name: string;
+  page_access_token: string;
+}
 
 export default function InstagramDirectPost() {
   const { data: session, status } = useSession();
@@ -20,6 +35,10 @@ export default function InstagramDirectPost() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [instagramAccounts, setInstagramAccounts] = useState<InstagramAccount[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
+  
   // 檢查用戶登入狀態
   useEffect(() => {
     console.log('Session Status:', status);
@@ -41,6 +60,79 @@ export default function InstagramDirectPost() {
       setSessionInfo('未登入');
     }
   }, [session, status]);
+
+  // 載入用戶的 Instagram 商業帳號
+  useEffect(() => {
+    if (session?.accessToken) {
+      fetchInstagramAccounts(session.accessToken);
+    }
+  }, [session]);
+
+  // 獲取用戶的 Instagram 商業帳號
+  const fetchInstagramAccounts = async (accessToken: string) => {
+    setIsLoadingAccounts(true);
+    setPostError(null);
+    try {
+      // 第一步：獲取用戶的 Facebook 頁面
+      const pagesResponse = await fetch(
+        `https://graph.facebook.com/v19.0/me/accounts?fields=name,access_token&access_token=${accessToken}`
+      );
+      
+      if (!pagesResponse.ok) {
+        throw new Error('無法獲取您的 Facebook 粉絲專頁');
+      }
+      
+      const pagesData = await pagesResponse.json();
+      
+      if (!pagesData.data || pagesData.data.length === 0) {
+        throw new Error('未找到您可管理的 Facebook 粉絲專頁');
+      }
+      
+      // 找出每個 Facebook 頁面關聯的 Instagram 商業帳號
+      const accounts: InstagramAccount[] = [];
+      
+      for (const page of pagesData.data) {
+        try {
+          const igResponse = await fetch(
+            `https://graph.facebook.com/v19.0/${page.id}?fields=instagram_business_account{id,name,username,profile_picture_url}&access_token=${page.access_token}`
+          );
+          
+          if (igResponse.ok) {
+            const igData = await igResponse.json();
+            
+            if (igData.instagram_business_account) {
+              accounts.push({
+                ...igData.instagram_business_account,
+                page_id: page.id,
+                page_name: page.name,
+                page_access_token: page.access_token
+              });
+            }
+          }
+        } catch (error) {
+          console.error(`獲取頁面 ${page.id} 的 Instagram 帳號出錯:`, error);
+        }
+      }
+      
+      setInstagramAccounts(accounts);
+      
+      if (accounts.length > 0) {
+        setSelectedAccountId(accounts[0].id);
+      } else {
+        setPostError('未找到您可管理的 Instagram 商業帳號。請確保您的 Facebook 粉絲專頁已連結 Instagram 商業帳號。');
+      }
+    } catch (error: any) {
+      console.error('獲取 Instagram 帳號出錯:', error);
+      setPostError(error.message || '無法載入您的 Instagram 商業帳號');
+    } finally {
+      setIsLoadingAccounts(false);
+    }
+  };
+
+  // 選擇 Instagram 帳號
+  const handleSelectAccount = (accountId: string) => {
+    setSelectedAccountId(accountId);
+  };
 
   // 處理文件選擇
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -155,6 +247,12 @@ export default function InstagramDirectPost() {
       setPostError('請至少選擇一張圖片上傳');
       return;
     }
+    
+    // 檢查是否選擇了 Instagram 帳號
+    if (!selectedAccountId) {
+      setPostError('請選擇要發布到的 Instagram 帳號');
+      return;
+    }
 
     setPosting(true);
     setPostError(null);
@@ -168,6 +266,13 @@ export default function InstagramDirectPost() {
     formData.append('caption', caption);
     formData.append('hashtags', hashtags);
     formData.append('imageCount', selectedFiles.length.toString());
+    formData.append('instagramAccountId', selectedAccountId);
+    // 獲取選擇的 Instagram 帳號的對應頁面訪問令牌
+    const selectedAccount = instagramAccounts.find(acc => acc.id === selectedAccountId);
+    if (selectedAccount) {
+      formData.append('pageId', selectedAccount.page_id);
+      formData.append('pageAccessToken', selectedAccount.page_access_token);
+    }
 
     try {
       // 發送到我們的 API 端點
@@ -261,6 +366,48 @@ export default function InstagramDirectPost() {
       {status === 'loading' && (
         <div className="text-center py-4">
           <p className="text-gray-600">正在檢查登入狀態...</p>
+        </div>
+      )}
+      
+      {isLoadingAccounts && (
+        <div className="text-center py-4">
+          <p className="text-gray-600">正在載入您的 Instagram 商業帳號...</p>
+        </div>
+      )}
+      
+      {instagramAccounts.length > 0 && status === 'authenticated' && (
+        <div className="mb-6">
+          <h3 className="text-sm font-medium text-gray-700 mb-2">選擇要發布到的 Instagram 帳號:</h3>
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
+            {instagramAccounts.map(account => (
+              <div 
+                key={account.id}
+                onClick={() => handleSelectAccount(account.id)}
+                className={`p-3 border rounded-md flex items-center cursor-pointer ${selectedAccountId === account.id ? 'border-pink-500 bg-pink-50' : 'border-gray-200 hover:bg-gray-50'}`}
+              >
+                <div className="flex-shrink-0 mr-3">
+                  {account.profile_picture_url ? (
+                    <img 
+                      src={account.profile_picture_url} 
+                      alt={account.username} 
+                      className="w-10 h-10 rounded-full"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                      <FaInstagram className="text-white" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-grow">
+                  <p className="font-medium text-gray-800">@{account.username}</p>
+                  <p className="text-xs text-gray-500">連結自: {account.page_name}</p>
+                </div>
+                {selectedAccountId === account.id && (
+                  <FaCheckCircle className="text-pink-500 ml-2" />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -423,14 +570,13 @@ export default function InstagramDirectPost() {
               <FaTimes className="mr-1" /> 清除
             </button>
 
-            <button
-              type="button"
+            <Button
               onClick={handlePost}
-              className="px-3 py-1.5 text-white bg-gradient-to-r from-purple-500 to-pink-500 rounded-md hover:from-purple-600 hover:to-pink-600 focus:outline-none flex items-center"
-              disabled={posting || selectedFiles.length === 0 || status !== 'authenticated'}
+              disabled={posting || previewUrls.length === 0 || !selectedAccountId || status !== 'authenticated'}
+              className={posting ? 'opacity-70 cursor-not-allowed' : ''}
             >
-              <FaInstagram className="mr-1" /> 立即發布
-            </button>
+              {posting ? '發布中...' : '發布到 Instagram'}
+            </Button>
           </div>
         </div>
       )}
