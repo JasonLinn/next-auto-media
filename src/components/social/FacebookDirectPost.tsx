@@ -243,21 +243,31 @@ export default function FacebookDirectPost() {
     setIsLoadingPages(true);
     setErrorMessage(null);
     try {
+      console.log('正在嘗試獲取 Facebook 粉絲專頁...');
+      console.log('使用的 Access Token:', accessToken ? `${accessToken.substring(0, 10)}...` : '無');
+      
       const response = await fetch(
         `https://graph.facebook.com/v19.0/me/accounts?fields=name,access_token,category,picture&access_token=${accessToken}`
       );
       
+      console.log('API 回應狀態:', response.status, response.statusText);
+      
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('獲取頁面失敗，錯誤詳情:', errorData);
         throw new Error('無法獲取您的 Facebook 粉絲專頁');
       }
       
       const data = await response.json();
+      console.log('獲取到的粉絲專頁資料:', data);
       
       if (data.data && data.data.length > 0) {
+        console.log(`成功獲取 ${data.data.length} 個粉絲專頁`);
         setPages(data.data);
         // 預設選擇第一個頁面
         setSelectedPageId(data.data[0].id);
       } else {
+        console.log('未找到粉絲專頁');
         setErrorMessage('未找到您可管理的 Facebook 粉絲專頁。請確保您的帳號連結了至少一個粉絲專頁，並授權應用程式存取。');
       }
     } catch (error: any) {
@@ -387,6 +397,9 @@ export default function FacebookDirectPost() {
           >
             <FaSignInAlt className="mr-1" /> 重新授權 Facebook 權限
           </button>
+          <div className="text-xs text-gray-500 mt-1">
+            如果無法載入您的粉絲專頁或發布失敗，請點擊上方按鈕重新授權，並確保同意所有權限請求。
+          </div>
         </div>
       )}
 
@@ -435,6 +448,26 @@ export default function FacebookDirectPost() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {pages.length === 0 && status === 'authenticated' && !isLoadingPages && (
+        <div className="bg-yellow-50 p-4 rounded-lg text-yellow-800 mb-4">
+          <h3 className="font-bold text-sm">未找到可管理的粉絲專頁</h3>
+          <p className="mt-1 text-sm">
+            要使用此功能，您需要：
+          </p>
+          <ol className="list-decimal pl-5 mt-1 text-sm space-y-1">
+            <li>確保您的 Facebook 帳號管理至少一個粉絲專頁</li>
+            <li>允許應用程式存取您的粉絲專頁（需重新授權並勾選所有權限）</li>
+            <li>確保您的粉絲專頁未受到 Meta 平台的限制</li>
+          </ol>
+          <button
+            onClick={handleForceReauth}
+            className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center mx-auto"
+          >
+            <FaSignInAlt className="mr-2" /> 重新授權 Facebook
+          </button>
         </div>
       )}
 

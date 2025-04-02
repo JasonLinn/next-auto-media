@@ -73,47 +73,69 @@ export default function InstagramDirectPost() {
     setIsLoadingAccounts(true);
     setPostError(null);
     try {
+      console.log('正在嘗試獲取 Instagram 商業帳號...');
+      console.log('使用的 Access Token:', accessToken ? `${accessToken.substring(0, 10)}...` : '無');
+      
       // 第一步：獲取用戶的 Facebook 頁面
+      console.log('步驟 1: 獲取 Facebook 粉絲專頁');
       const pagesResponse = await fetch(
         `https://graph.facebook.com/v19.0/me/accounts?fields=name,access_token&access_token=${accessToken}`
       );
       
+      console.log('Facebook 頁面 API 回應狀態:', pagesResponse.status, pagesResponse.statusText);
+      
       if (!pagesResponse.ok) {
+        const errorData = await pagesResponse.json().catch(() => ({}));
+        console.error('獲取 Facebook 頁面失敗，錯誤詳情:', errorData);
         throw new Error('無法獲取您的 Facebook 粉絲專頁');
       }
       
       const pagesData = await pagesResponse.json();
+      console.log('獲取到的 Facebook 頁面資料:', pagesData);
       
       if (!pagesData.data || pagesData.data.length === 0) {
+        console.log('未找到 Facebook 粉絲專頁');
         throw new Error('未找到您可管理的 Facebook 粉絲專頁');
       }
       
       // 找出每個 Facebook 頁面關聯的 Instagram 商業帳號
+      console.log('步驟 2: 查詢關聯的 Instagram 商業帳號');
       const accounts: InstagramAccount[] = [];
       
       for (const page of pagesData.data) {
         try {
+          console.log(`檢查頁面 ${page.id} (${page.name}) 的 Instagram 商業帳號...`);
           const igResponse = await fetch(
             `https://graph.facebook.com/v19.0/${page.id}?fields=instagram_business_account{id,name,username,profile_picture_url}&access_token=${page.access_token}`
           );
           
+          console.log(`頁面 ${page.id} 的 Instagram 查詢狀態:`, igResponse.status, igResponse.statusText);
+          
           if (igResponse.ok) {
             const igData = await igResponse.json();
+            console.log(`頁面 ${page.id} 的 Instagram 資料:`, igData);
             
             if (igData.instagram_business_account) {
+              console.log(`找到關聯的 Instagram 帳號:`, igData.instagram_business_account);
               accounts.push({
                 ...igData.instagram_business_account,
                 page_id: page.id,
                 page_name: page.name,
                 page_access_token: page.access_token
               });
+            } else {
+              console.log(`頁面 ${page.id} 沒有關聯的 Instagram 商業帳號`);
             }
+          } else {
+            const errorData = await igResponse.json().catch(() => ({}));
+            console.error(`獲取頁面 ${page.id} 的 Instagram 帳號失敗:`, errorData);
           }
         } catch (error) {
           console.error(`獲取頁面 ${page.id} 的 Instagram 帳號出錯:`, error);
         }
       }
       
+      console.log(`總共找到 ${accounts.length} 個 Instagram 商業帳號`);
       setInstagramAccounts(accounts);
       
       if (accounts.length > 0) {
@@ -360,6 +382,9 @@ export default function InstagramDirectPost() {
           >
             <FaSignInAlt className="mr-1" /> 重新授權 Instagram 權限
           </button>
+          <div className="text-xs text-gray-500 mt-1">
+            如果無法載入您的 Instagram 帳號或發布失敗，請點擊上方按鈕重新授權，並確保同意所有權限請求。
+          </div>
         </div>
       )}
 
@@ -408,6 +433,27 @@ export default function InstagramDirectPost() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {instagramAccounts.length === 0 && status === 'authenticated' && !isLoadingAccounts && (
+        <div className="bg-yellow-50 p-4 rounded-lg text-yellow-800 mb-4">
+          <h3 className="font-bold text-sm">未找到可管理的 Instagram 商業帳號</h3>
+          <p className="mt-1 text-sm">
+            要使用此功能，您需要：
+          </p>
+          <ol className="list-decimal pl-5 mt-1 text-sm space-y-1">
+            <li>確保您的 Facebook 帳號管理至少一個粉絲專頁</li>
+            <li>將您的 Instagram 商業帳號連結到 Facebook 粉絲專頁</li>
+            <li>允許應用程式存取您的 Instagram 帳號（需重新授權並勾選所有權限）</li>
+            <li>確保您的帳號未受到 Meta 平台的限制</li>
+          </ol>
+          <button
+            onClick={handleForceReauth}
+            className="mt-3 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-colors flex items-center mx-auto"
+          >
+            <FaSignInAlt className="mr-2" /> 重新授權 Instagram
+          </button>
         </div>
       )}
 

@@ -30,7 +30,11 @@ async function parseFormData(req: NextRequest) {
 async function getUserPages(accessToken: string): Promise<FacebookPage[]> {
   try {
     console.log('正在獲取用戶頁面...');
+    console.log('使用的 Access Token:', accessToken ? `${accessToken.substring(0, 20)}...` : '無');
+    
     const response = await fetch(`https://graph.facebook.com/v19.0/me/accounts?access_token=${accessToken}`);
+    
+    console.log('API 回應狀態:', response.status, response.statusText);
     
     if (!response.ok) {
       const errorData = await response.json();
@@ -39,7 +43,8 @@ async function getUserPages(accessToken: string): Promise<FacebookPage[]> {
     }
     
     const data = await response.json();
-    console.log('獲取到的頁面數據:', JSON.stringify(data, null, 2));
+    console.log('獲取到的頁面數量:', data.data?.length || 0);
+    console.log('頁面列表:', data.data?.map((page: any) => ({ id: page.id, name: page.name })) || []);
     
     if (!data.data || data.data.length === 0) {
       throw new Error('未找到您可管理的Facebook頁面，請確保您的Facebook帳號擁有頁面管理權限');
@@ -115,6 +120,13 @@ export async function POST(req: NextRequest) {
     // 獲取用戶會話
     const session = await auth();
     
+    console.log('會話資訊:', {
+      hasSession: !!session,
+      hasAccessToken: !!session?.accessToken,
+      userId: session?.user?.id,
+      userEmail: session?.user?.email
+    });
+    
     if (!session?.accessToken) {
       console.error('未授權: 缺少訪問令牌');
       return NextResponse.json(
@@ -124,6 +136,7 @@ export async function POST(req: NextRequest) {
     }
     
     console.log('已獲取會話, 訪問令牌是否存在:', !!session.accessToken);
+    console.log('訪問令牌:', session.accessToken ? `${session.accessToken.substring(0, 20)}...` : '無');
     
     // 解析表單數據
     const { file, message, pageId } = await parseFormData(req);

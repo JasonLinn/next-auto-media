@@ -23,8 +23,12 @@ const FACEBOOK_SCOPES = [
   'pages_show_list',
   'pages_read_engagement',
   'pages_manage_posts',
+  'pages_manage_metadata',
+  'business_management',
   'instagram_basic',
-  'instagram_content_publish'
+  'instagram_content_publish',
+  'instagram_manage_comments',
+  'instagram_manage_insights'
 ];
 
 // Instagram API 範圍
@@ -161,11 +165,12 @@ export const authOptions: NextAuthConfig = {
     async jwt({ token, account }) {
       try {
         if (account) {
-          console.log('[NextAuth][Debug][JWT-Account]', { 
-            accessToken: !!account.access_token, 
-            refreshToken: !!account.refresh_token,
-            expiresAt: account.expires_at
-          });
+          console.log('[NextAuth][Debug][JWT-Account] 提供者:', account.provider);
+          console.log('[NextAuth][Debug][JWT-Account] 訪問令牌:', account.access_token ? `${account.access_token.substring(0, 20)}...` : '無');
+          console.log('[NextAuth][Debug][JWT-Account] 授權範圍:', account.scope);
+          console.log('[NextAuth][Debug][JWT-Account] 令牌類型:', account.token_type);
+          console.log('[NextAuth][Debug][JWT-Account] 完整帳號資訊:', JSON.stringify(account, null, 2));
+          
           token.accessToken = account.access_token;
           token.refreshToken = account.refresh_token;
           token.expiresAt = account.expires_at;
@@ -183,10 +188,8 @@ export const authOptions: NextAuthConfig = {
           session.refreshToken = token.refreshToken as string;
           
           // 添加調試日誌
-          console.log('[NextAuth][Debug][Session-Token]', { 
-            hasAccessToken: !!session.accessToken,
-            hasRefreshToken: !!session.refreshToken
-          });
+          console.log('[NextAuth][Debug][Session-Token] 訪問令牌:', session.accessToken ? `${session.accessToken.substring(0, 20)}...` : '無');
+          console.log('[NextAuth][Debug][Session-Token] 刷新令牌:', session.refreshToken ? '存在' : '不存在');
         }
 
         if (session?.user?.email) {
