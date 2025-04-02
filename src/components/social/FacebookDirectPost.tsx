@@ -4,6 +4,10 @@ import { useState, useRef, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { FaFacebookSquare, FaUpload, FaTimes, FaLock, FaEye, FaUsers, FaSignInAlt, FaInfoCircle, FaImage } from 'react-icons/fa';
 import { signIn } from 'next-auth/react';
+import { Button } from "../ui/button";
+import { Textarea } from "../ui/textarea";
+import { ImagePlus, Send } from "lucide-react";
+import { toast } from "sonner";
 
 type PrivacyLevel = 'PUBLIC' | 'FRIENDS' | 'ONLY_ME';
 
@@ -204,6 +208,85 @@ export default function FacebookDirectPost() {
     setPostUrl('');
   };
 
+  const [message, setMessage] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setErrorMessage(null);
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      setFile(selectedFile);
+      
+      // 建立預覽圖
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setPreview(event.target?.result as string);
+      };
+      reader.readAsDataURL(selectedFile);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!message && !file) {
+      toast.error("請輸入訊息或上傳圖片");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage(null);
+    
+    try {
+      const formData = new FormData();
+      if (message) formData.append('message', message);
+      if (file) formData.append('file', file);
+
+      const response = await fetch('/api/facebook/post', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '發文失敗');
+      }
+
+      toast.success("成功發布到 Facebook！");
+      // 重置表單
+      setMessage('');
+      setFile(null);
+      setPreview(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error: any) {
+      console.error('Facebook 發文錯誤:', error);
+      const errorMsg = error.message || '發文失敗，請稍後再試';
+      setErrorMessage(errorMsg);
+      toast.error(errorMsg);
+      
+      // 如果錯誤訊息包含特定關鍵詞，提供更詳細的指導
+      if (errorMsg.includes('未找到您可管理的Facebook頁面')) {
+        setErrorMessage('未找到您可管理的Facebook頁面。請確保：\n1. 您的Facebook帳號管理至少一個粉絲專頁\n2. 您已授權應用程式存取您的粉絲專頁\n3. 您的應用程式已啟用適當的權限');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setFile(null);
+    setPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <h2 className="text-xl font-bold mb-4 flex items-center text-blue-600">
@@ -277,165 +360,70 @@ export default function FacebookDirectPost() {
           </button>
         </div>
       ) : (
-        <div className="space-y-4">
-          {/* 貼文內容輸入 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">貼文內容</label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md h-32"
-              placeholder="分享您的想法..."
-              disabled={status !== 'authenticated' || posting}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="p-4 border rounded-lg">
+            <Textarea
+              placeholder="輸入您想發布到 Facebook 的訊息..."
+              value={message}
+              onChange={(e) => {
+                setMessage(e.target.value);
+                setErrorMessage(null);
+              }}
+              className="min-h-[100px] resize-none border-none focus-visible:ring-0 p-0"
             />
-          </div>
-
-          {/* 鏈結輸入 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">鏈結 (選填)</label>
-            <input
-              type="url"
-              value={link}
-              onChange={(e) => setLink(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
-              placeholder="https://example.com"
-              disabled={status !== 'authenticated' || posting}
-            />
-          </div>
-
-          {/* 圖片上傳區域 */}
-          {!selectedFile ? (
-            <div 
-              className={`border-2 border-dashed border-gray-300 rounded-lg p-6 text-center ${status !== 'authenticated' ? 'opacity-75 pointer-events-none' : 'cursor-pointer hover:border-blue-500'} transition-colors`}
-              onClick={() => status === 'authenticated' && fileInputRef.current?.click()}
-              onDrop={status === 'authenticated' ? handleDrop : undefined}
-              onDragOver={status === 'authenticated' ? handleDragOver : undefined}
-              >
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileSelect} 
-                className="hidden" 
-                accept="image/*"
-                disabled={status !== 'authenticated'}
-              />
-              <FaImage className="mx-auto text-3xl text-gray-400 mb-3" />
-              <p className="text-gray-500 mb-1">點擊或拖放圖片文件到此處</p>
-              <p className="text-sm text-gray-400">支持 JPG, PNG, GIF 等格式</p>
-            </div>
-          ) : (
-            <div className="relative border border-gray-300 rounded-lg overflow-hidden">
-              <img 
-                src={previewUrl || ''} 
-                alt="預覽圖片" 
-                className="w-full h-auto max-h-60 object-contain"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedFile(null);
-                  setPreviewUrl(null);
-                }}
-                className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
-                disabled={posting}
-              >
-                <FaTimes />
-              </button>
-            </div>
-          )}
-
-          {/* 隱私設置 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">隱私設置</label>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button" 
-                onClick={() => setPrivacyLevel('PUBLIC')}
-                className={`px-3 py-2 rounded-md text-sm flex items-center justify-center ${
-                  privacyLevel === 'PUBLIC' 
-                    ? 'bg-blue-100 text-blue-800 border border-blue-300' 
-                    : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                }`}
-                disabled={status !== 'authenticated' || posting}
-              >
-                <FaEye className="mr-1" /> 公開
-              </button>
-              <button
-                type="button" 
-                onClick={() => setPrivacyLevel('FRIENDS')}
-                className={`px-3 py-2 rounded-md text-sm flex items-center justify-center ${
-                  privacyLevel === 'FRIENDS' 
-                    ? 'bg-blue-100 text-blue-800 border border-blue-300' 
-                    : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                }`}
-                disabled={status !== 'authenticated' || posting}
-              >
-                <FaUsers className="mr-1" /> 朋友
-              </button>
-              <button
-                type="button" 
-                onClick={() => setPrivacyLevel('ONLY_ME')}
-                className={`px-3 py-2 rounded-md text-sm flex items-center justify-center ${
-                  privacyLevel === 'ONLY_ME' 
-                    ? 'bg-gray-700 text-white' 
-                    : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                }`}
-                disabled={status !== 'authenticated' || posting}
-              >
-                <FaLock className="mr-1" /> 僅自己
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">{getPrivacyDescription(privacyLevel)}</p>
-          </div>
-
-          {postError && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-md">
-              {postError}
-              {(postError.includes('授權') || postError.includes('權限')) && (
+            
+            {preview && (
+              <div className="relative mt-2">
+                <img src={preview} alt="預覽" className="max-h-64 rounded-md object-contain" />
                 <button
-                  onClick={handleForceReauth}
-                  className="mt-2 text-sm text-blue-600 hover:text-blue-800 underline block"
+                  type="button"
+                  onClick={handleRemoveFile}
+                  className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
                 >
-                  點擊此處重新授權
+                  X
                 </button>
-              )}
-            </div>
-          )}
-
-          {posting && (
-            <div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-blue-600 h-2 rounded-full animate-pulse" 
-                  style={{ width: '100%' }}
-                ></div>
               </div>
-              <p className="text-sm text-gray-600 mt-1">
-                正在發布...
-              </p>
-            </div>
-          )}
-
-          <div className="flex justify-between pt-2">
-            <button
-              type="button"
-              onClick={handleReset}
-              className="px-3 py-1.5 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none flex items-center"
-              disabled={posting}
-            >
-              <FaTimes className="mr-1" /> 清除
-            </button>
-
-            <button
-              type="button"
-              onClick={handlePost}
-              className="px-3 py-1.5 text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none flex items-center"
-              disabled={posting || (!content.trim() && !selectedFile) || status !== 'authenticated'}
-            >
-              <FaFacebookSquare className="mr-1" /> 立即發布
-            </button>
+            )}
+            
+            {errorMessage && (
+              <div className="mt-2 text-red-500 text-sm whitespace-pre-line">
+                {errorMessage}
+              </div>
+            )}
           </div>
-        </div>
+          
+          <div className="flex justify-between">
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+                id="fb-file-upload"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <ImagePlus className="h-4 w-4 mr-2" />
+                添加圖片
+              </Button>
+            </div>
+            
+            <Button type="submit" disabled={isSubmitting} size="sm">
+              <Send className="h-4 w-4 mr-2" />
+              {isSubmitting ? '發布中...' : '發布到 Facebook'}
+            </Button>
+          </div>
+          
+          <div className="text-sm text-gray-500 mt-2">
+            注意：發布內容將顯示在您管理的第一個 Facebook 頁面上。
+            確保您已授權應用程式存取您的 Facebook 頁面。
+          </div>
+        </form>
       )}
     </div>
   );
