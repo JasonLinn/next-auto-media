@@ -1,13 +1,26 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { auth } from "@/auth";
+import { NextResponse } from "next/server";
 
-export async function GET(req: NextRequest) {
-  const session = await auth();
-  
-  // 返回會話信息，但不包含敏感數據
-  return NextResponse.json({
-    user: session?.user || null,
-    expires: session?.expires || null,
-    authenticated: !!session?.user,
-  });
+export async function GET() {
+  try {
+    console.log('處理會話請求...');
+    const session = await auth();
+    
+    console.log('會話狀態:', {
+      hasSession: !!session,
+      user: session?.user?.email,
+      hasToken: !!session?.accessToken
+    });
+    
+    return NextResponse.json({
+      authenticated: !!session,
+      session
+    });
+  } catch (error) {
+    console.error('獲取會話時發生錯誤:', error);
+    return NextResponse.json(
+      { error: '獲取會話時發生錯誤', details: error },
+      { status: 500 }
+    );
+  }
 } 

@@ -489,12 +489,26 @@ export default function FacebookDirectPost() {
             <li>允許應用程式存取您的粉絲專頁（需重新授權並勾選所有權限）</li>
             <li>確保您的粉絲專頁未受到 Meta 平台的限制</li>
           </ol>
-          <button
-            onClick={handleForceReauth}
-            className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center mx-auto"
-          >
-            <FaSignInAlt className="mr-2" /> 重新授權 Facebook
-          </button>
+          <div className="mt-3 flex flex-col space-y-2">
+            <button
+              onClick={handleForceReauth}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center mx-auto"
+            >
+              <FaSignInAlt className="mr-2" /> 重新授權 Facebook
+            </button>
+            
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center mx-auto"
+            >
+              <FaSignInAlt className="mr-2" /> 重新整理頁面
+            </button>
+            
+            <div className="text-xs text-center mt-2 text-gray-600">
+              授權過程中請確保勾選所有權限，特別是「存取您管理的粉絲專頁」權限。<br />
+              如果仍然出現問題，請嘗試使用不同的瀏覽器，或清除瀏覽器緩存和 Cookie。
+            </div>
+          </div>
         </div>
       )}
 

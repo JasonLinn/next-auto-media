@@ -254,6 +254,21 @@ export const authOptions: NextAuthConfig = {
         // 添加調試日誌
         console.log('[NextAuth][Debug][SignIn]', { email: user.email, provider: account?.provider });
         
+        // 檢查是否有來自 Facebook 或 Instagram 的授權
+        if (account?.provider === 'facebook' || account?.provider === 'instagram') {
+          console.log(`[NextAuth][Debug][SignIn] 從 ${account.provider} 獲取授權`, { 
+            token: account.access_token ? `${account.access_token.substring(0, 10)}...` : '無',
+            tokenType: account.token_type,
+            scope: account.scope
+          });
+          
+          // 確保我們有令牌，否則可能是授權有問題
+          if (!account.access_token) {
+            console.error(`[NextAuth][Error][SignIn] 沒有從 ${account.provider} 獲得訪問令牌`);
+            // 可以允許登入，但後續操作可能會失敗
+          }
+        }
+        
         // 嘗試在 Supabase 中查詢用戶
         try {
           const { data: existingUser, error: queryError } = await supabase
@@ -277,7 +292,8 @@ export const authOptions: NextAuthConfig = {
                   avatar_url: user.image,
                   provider: account?.provider,
                   provider_id: account?.providerAccountId,
-                }]);
+                }])
+                .select();  // 使用 select() 而不是單獨的 insert，這樣即使返回沒有數據也不會拋出異常
 
               if (insertError && insertError.code !== '42P01') {
                 console.error('創建用戶失敗：', insertError);
