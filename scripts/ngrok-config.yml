@@ -1,0 +1,8 @@
+version: 2
+authtoken: 2cXXXXXXXXXXXXXXXXXXXXXXXXX
+tunnels:
+  next:
+    proto: http
+    addr: 3000
+    domain: your-domain.ngrok.io  # 如果您有自訂域名，可以使用此選項
+log: stdout 
