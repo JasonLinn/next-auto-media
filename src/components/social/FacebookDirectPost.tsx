@@ -4,8 +4,8 @@ import { useState, useRef, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { FaFacebookSquare, FaUpload, FaTimes, FaLock, FaEye, FaUsers, FaSignInAlt, FaInfoCircle, FaImage } from 'react-icons/fa';
 import { signIn } from 'next-auth/react';
-import { Button } from "../ui/button";
-import { Textarea } from "../ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { ImagePlus, Send } from "lucide-react";
 import { toast } from "sonner";
 
