@@ -155,3 +155,53 @@ src/
 ## 許可證
 
 MIT
+
+## 環境設置
+
+### 環境變數
+
+複製 `.env.local.example` 為 `.env.local` 並根據您的需求更新變數：
+
+```bash
+cp .env.local.example .env.local
+```
+
+主要的環境變數包括：
+
+- `NEXTAUTH_URL`: 您的應用程式 URL（開發時可以是 ngrok URL）
+- `NEXT_PUBLIC_URL`: 公共 URL，與 NEXTAUTH_URL 相同
+- OAuth 相關的客戶端 ID 和密鑰
+- 所有社交媒體平台的重定向 URI
+
+### 使用 ngrok 進行開發
+
+對於 Instagram 和 Facebook 等平台，OAuth 需要 HTTPS URL，即使在本地開發環境中也是如此。我們使用 ngrok 提供一個臨時的公共 HTTPS URL：
+
+1. 安裝 ngrok：
+   ```bash
+   npm install -g ngrok
+   ```
+
+2. 設置 ngrok 授權令牌（只需做一次）：
+   ```bash
+   ngrok config add-authtoken YOUR_AUTH_TOKEN
+   ```
+
+3. 啟動 ngrok 隧道：
+   ```bash
+   ngrok http 3000
+   ```
+
+4. 使用生成的 URL 更新 `.env.local` 中的所有重定向 URI：
+   ```
+   NEXTAUTH_URL=https://xxxx-xxxx-xxxx.ngrok-free.app
+   NEXT_PUBLIC_URL=https://xxxx-xxxx-xxxx.ngrok-free.app
+   FACEBOOK_REDIRECT_URI=https://xxxx-xxxx-xxxx.ngrok-free.app/api/auth/callback/facebook
+   INSTAGRAM_REDIRECT_URI=https://xxxx-xxxx-xxxx.ngrok-free.app/api/auth/callback/instagram
+   ```
+
+5. 在社交媒體平台的開發者設置中，更新授權重定向 URI：
+   - Facebook 開發者平台：添加 `https://xxxx-xxxx-xxxx.ngrok-free.app/api/auth/callback/facebook`
+   - Instagram Basic Display：添加 `https://xxxx-xxxx-xxxx.ngrok-free.app/api/auth/callback/instagram`
+
+> **注意**: 每次重啟 ngrok 時，都會生成一個新的 URL，您需要更新環境變數和開發者平台設置。
