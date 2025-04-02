@@ -42,7 +42,12 @@ export default function InstagramDirectPost() {
   // 檢查用戶登入狀態
   useEffect(() => {
     console.log('Session Status:', status);
-    console.log('Session Data:', session);
+    console.log('Session Data:', JSON.stringify({
+      email: session?.user?.email,
+      name: session?.user?.name,
+      hasAccessToken: !!session?.accessToken,
+      tokenStart: session?.accessToken ? session.accessToken.substring(0, 15) : null
+    }, null, 2));
     
     if (status === 'loading') {
       setSessionInfo('正在檢查登入狀態...');
@@ -51,7 +56,7 @@ export default function InstagramDirectPost() {
     
     if (status === 'authenticated') {
       // 設置會話信息，方便調試
-      setSessionInfo(`已登入: ${session?.user?.email || '未知用戶'}`);
+      setSessionInfo(`已登入: ${session?.user?.email || '未知用戶'} ${session?.accessToken ? '(已獲取令牌)' : '(無令牌)'}`);
       
       setIsAuthenticated(true);
       setPostError(null);
@@ -243,16 +248,20 @@ export default function InstagramDirectPost() {
 
   // 處理登入
   const handleSignIn = async () => {
-    await signIn('instagram', {
+    await signIn('facebook', { // 使用 Facebook 提供者，因為 Instagram 是通過 Facebook 登入
       callbackUrl: window.location.href
     });
   };
 
   // 強制重新授權
   const handleForceReauth = async () => {
-    await signIn('instagram', {
+    // 先清除所有會話狀態
+    localStorage.removeItem('igAuth');
+    // 通過 URL 參數強制要求重新授權
+    await signIn('facebook', { // 注意：我們使用 facebook 提供者，因為 Instagram 登入是通過 Facebook 進行的
       callbackUrl: window.location.href,
-      prompt: 'consent'
+      prompt: 'consent',
+      auth_type: 'rerequest'
     });
   };
 

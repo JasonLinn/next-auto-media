@@ -44,7 +44,12 @@ export default function FacebookDirectPost() {
   // 檢查用戶登入狀態
   useEffect(() => {
     console.log('Session Status:', status);
-    console.log('Session Data:', session);
+    console.log('Session Data:', JSON.stringify({
+      email: session?.user?.email,
+      name: session?.user?.name,
+      hasAccessToken: !!session?.accessToken,
+      tokenStart: session?.accessToken ? session.accessToken.substring(0, 15) : null
+    }, null, 2));
     
     if (status === 'loading') {
       setSessionInfo('正在檢查登入狀態...');
@@ -53,7 +58,7 @@ export default function FacebookDirectPost() {
     
     if (status === 'authenticated') {
       // 設置會話信息，方便調試
-      setSessionInfo(`已登入: ${session?.user?.email || '未知用戶'}`);
+      setSessionInfo(`已登入: ${session?.user?.email || '未知用戶'} ${session?.accessToken ? '(已獲取令牌)' : '(無令牌)'}`);
       
       setIsAuthenticated(true);
       setPostError(null);
@@ -138,9 +143,13 @@ export default function FacebookDirectPost() {
 
   // 強制重新授權
   const handleForceReauth = async () => {
+    // 先清除所有會話狀態
+    localStorage.removeItem('fbAuth');
+    // 通過 URL 參數強制要求重新授權
     await signIn('facebook', {
       callbackUrl: window.location.href,
-      prompt: 'consent'
+      prompt: 'consent',
+      auth_type: 'rerequest'
     });
   };
 
@@ -244,25 +253,43 @@ export default function FacebookDirectPost() {
     setErrorMessage(null);
     try {
       console.log('正在嘗試獲取 Facebook 粉絲專頁...');
-      console.log('使用的 Access Token:', accessToken ? `${accessToken.substring(0, 10)}...` : '無');
+      console.log('使用的 Access Token:', accessToken ? `${accessToken.substring(0, 10)}...${accessToken.substring(accessToken.length - 5)}` : '無');
       
-      const response = await fetch(
-        `https://graph.facebook.com/v19.0/me/accounts?fields=name,access_token,category,picture&access_token=${accessToken}`
-      );
+      const url = `https://graph.facebook.com/v19.0/me/accounts?fields=name,access_token,category,picture&access_token=${accessToken}`;
+      console.log('請求 URL:', url.replace(accessToken, 'TOKEN_HIDDEN'));
+      
+      const response = await fetch(url);
       
       console.log('API 回應狀態:', response.status, response.statusText);
       
+      const responseText = await response.text();
+      console.log('API 回應內容:', responseText);
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('解析 JSON 失敗:', parseError);
+        throw new Error('無法解析 API 回應');
+      }
+      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('獲取頁面失敗，錯誤詳情:', errorData);
+        console.error('獲取頁面失敗，錯誤詳情:', data);
+        if (data.error) {
+          if (data.error.code === 190) {
+            throw new Error('授權令牌已過期或無效，請重新授權');
+          } else if (data.error.code === 4) {
+            throw new Error('應用程式請求次數已達上限，請稍後再試');
+          } else {
+            throw new Error(`API 錯誤 (${data.error.code}): ${data.error.message}`);
+          }
+        }
         throw new Error('無法獲取您的 Facebook 粉絲專頁');
       }
       
-      const data = await response.json();
-      console.log('獲取到的粉絲專頁資料:', data);
-      
       if (data.data && data.data.length > 0) {
         console.log(`成功獲取 ${data.data.length} 個粉絲專頁`);
+        console.log('粉絲專頁列表:', data.data.map((p: any) => ({ id: p.id, name: p.name })));
         setPages(data.data);
         // 預設選擇第一個頁面
         setSelectedPageId(data.data[0].id);

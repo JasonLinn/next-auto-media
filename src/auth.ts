@@ -112,7 +112,17 @@ export const authOptions: NextAuthConfig = {
       clientSecret: process.env.FACEBOOK_APP_SECRET!,
       authorization: {
         params: {
-          scope: FACEBOOK_SCOPES.join(',')
+          scope: FACEBOOK_SCOPES.join(','),
+          display: 'popup',
+          auth_type: 'rerequest'
+        }
+      },
+      profile(profile) {
+        return {
+          id: profile.id,
+          name: profile.name,
+          email: profile.email,
+          image: profile.picture?.data?.url
         }
       }
     }),
