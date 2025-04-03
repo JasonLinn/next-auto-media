@@ -457,27 +457,12 @@ export default function InstagramDirectPost() {
             <li>允許應用程式存取您的 Instagram 帳號（需重新授權並勾選所有權限）</li>
             <li>確保您的帳號未受到 Meta 平台的限制</li>
           </ol>
-          <div className="mt-3 flex flex-col space-y-2">
-            <button
-              onClick={handleForceReauth}
-              className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-colors flex items-center mx-auto"
-            >
-              <FaSignInAlt className="mr-2" /> 重新授權 Instagram
-            </button>
-            
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center mx-auto"
-            >
-              <FaSignInAlt className="mr-2" /> 重新整理頁面
-            </button>
-            
-            <div className="text-xs text-center mt-2 text-gray-600">
-              授權過程中請確保勾選所有權限，特別是Instagram相關權限。<br />
-              如果您剛剛連結Instagram帳號與粉絲專頁，Meta平台可能需要幾分鐘時間進行同步。<br />
-              如果仍然出現問題，請嘗試使用不同的瀏覽器，或清除瀏覽器緩存和Cookie。
-            </div>
-          </div>
+          <button
+            onClick={handleForceReauth}
+            className="mt-3 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-colors flex items-center mx-auto"
+          >
+            <FaSignInAlt className="mr-2" /> 重新授權 Instagram
+          </button>
         </div>
       )}
 

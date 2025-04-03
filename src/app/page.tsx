@@ -133,7 +133,7 @@ export default function Home() {
           <YoutubeDirectUpload />
           <TikTokDirectUpload />
         </div>
-      </div>
-    </main>
+        </div>
+      </main>
   );
 }
